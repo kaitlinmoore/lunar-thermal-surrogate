@@ -1,0 +1,23 @@
+# Orchestration files and the planning package: local only, never committed
+handoffs/
+lunar_thermal_surrogate_planning_package.md
+
+# Learning write-ups (Research Project Standard v2)
+learning/
+
+# Data and model artifacts
+data/
+*.mdlus
+*.pt
+*.ckpt
+
+# Python and environments
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Secrets
+.env
