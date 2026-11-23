@@ -31,14 +31,18 @@ jobs:
         with:
           persist-credentials: false
 
-      # Restores uv's cache (downloaded wheels) keyed on uv.lock, and saves it after a successful
-      # run. The uv version matches the one recorded in the README's Environment table.
+      # Restores uv's cache keyed on uv.lock, and saves it after a successful run. The uv version
+      # matches the one recorded in the README's Environment table.
+      # prune-cache drops pre-built wheels (PyTorch and its CUDA libraries, about 3 GB) from the
+      # saved cache, keeping only wheels uv built from source: on hosted runners, downloading the
+      # pre-built wheels from their indexes is faster than restoring a 3 GB cache.
       - name: Set up uv
         uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           version: "0.13.8"
           enable-cache: true
           cache-dependency-glob: uv.lock
+          prune-cache: true
 
       # With no argument, uv installs the version named in .python-version.
       - name: Install Python
