@@ -10,11 +10,26 @@ _To be written._
 
 ## Data sources
 
-Data is gitignored and never committed.
+Data is gitignored and never committed. It lives in the WSL filesystem at `LSS_DATA_DIR` (set in `.env`; default `$HOME/data/lunar-thermal-surrogate/lss-data`), with `data/` (terrain), `kernels/` (SPICE) and `MANIFEST.json` (URL, size, SHA-256 and retrieval time of every file). `cache/` there holds computed horizons.
+
+**How it got there.** On 2026-11-23 it was copied once from Penumbra Luna's data folder (`C:\dev\GitHub\lss-data`; `data/`, `kernels/` and `MANIFEST.json`, not its `cache/`). That came to 44 files and 3,363,723,442 bytes (3.36 GB), most of it `LDEM_128.IMG` (2.12 GB). The copy matches the source in file count and bytes. `uv run python scripts/fetch_data.py --verify` re-hashes all 44 files against the manifest and reports every one `ok`. Every file also passes the catalog's leading-byte check (`lss.datafiles.looks_like`). To rebuild from the original sources instead, run `uv run python scripts/fetch_data.py` (the catalog is `src/lss/datafiles.py`). The access dates below are when Penumbra Luna downloaded each file, from `MANIFEST.json`.
 
 | Source | URL | Version | Access date | License |
 |---|---|---|---|---|
-| _To be filled in when data is added._ | | | | |
+| NAIF SPICE generic kernels, DE421 era: `de421.bsp`, `moon_pa_de421_1900-2050.bpc`, `moon_080317.tf`, `moon_assoc_me.tf`, `naif0012.tls`, `pck00010.tpc` (Sun and Earth geometry in the Moon's mean-Earth frame) | https://naif.jpl.nasa.gov/pub/naif/generic_kernels/ | DE421 (Folkner et al. 2008); files as named. Lunar orientation covers 1900 to 2050 | 2026-11-15 | U.S. Government work, freely available |
+| NASA GSFC PGDA product 90, south polar LOLA DEMs: `LDEM_80S_80MPP_ADJ` (80 m, ±304 km from the pole) and `LDEM_60S_240MPP_ADJ` (240 m, ±931 km). The horizon terrain for south-polar points | https://pgda.gsfc.nasa.gov/products/90 | as published with Barker et al. (2023), PSJ 4, 183, doi:10.3847/PSJ/acf3e1; data doi:10.60903/gsfcpgda-lola-spole | 2026-11-15 | NASA-produced data (U.S. Government work); no license stated; the PGDA Data Usage Policy asks users to cite the paper |
+| LOLA global gridded DEM `LDEM_128` (`.IMG` + `.LBL`; 128 px/deg, 237 m). The horizon terrain off the polar maps | https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ | LRO-L-LOLA-4-GDR-V1.0, product version 3.0 (2017-09-15); Neumann (2010), Smith et al. (2010) | 2026-11-16 | NASA PDS data (U.S. Government work) |
+| NASA GSFC PGDA product 78, 5 m site DEMs (Site01, 04, 06, 07, 11, 20, 23, 42), RoI archives and the Site01 slope map. These tiles lie on held-out sites and are used by the engine only there | https://pgda.gsfc.nasa.gov/products/78 | as published with Barker et al. (2021), PSS 203, 105119, doi:10.1016/j.pss.2020.105119 | 2026-11-15 and 2026-11-16 | NASA-produced data; no license stated; PGDA asks users to cite the paper |
+| PGDA product 90, clips cut by `fetch_data.py`: `LDEM_83S_10MPP_ADJ` (10 m, ±12 km or ±20 km around sites) and `LDEM_60S_60MPP_ADJ` (60 m, ±150 km around Site01). Copied with the rest; Penumbra Luna uses them for slope statistics and validation, and this repo doesn't use them yet | https://pgda.gsfc.nasa.gov/products/90 | as above | 2026-11-15 and 2026-11-16 | as above |
+| PGDA product 69, average solar and Earth visibility (`AVGVISIB_85S_060M_201608`, `..._EARTH`), and the PDS LOLA `LDEM_75S_60M` clip. Copied with the rest; Penumbra Luna validation data, not used here | https://pgda.gsfc.nasa.gov/products/69 and https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ | product 69 2016 release (Mazarico et al. 2011); LDEM_75S_60M product version 2.0 (2017) | 2026-11-15 and 2026-11-16 | NASA-produced data / NASA PDS data (U.S. Government work); cite Mazarico et al. 2011 |
+
+Dataset details, citations and terms come from Penumbra Luna's dataset registry (`src/lss/registry/datasets.yaml`, copied with the engine).
+
+## Vendored code
+
+`src/lss/` is Penumbra Luna's illumination engine (Apache-2.0), copied unchanged from commit `aef153a` of https://github.com/kaitlinmoore/nasa-lunar-site-scout. It is never edited here: changes go to Penumbra Luna first and are then copied again. [`src/lss/VENDORED.md`](src/lss/VENDORED.md) records what was copied and left out, and why, plus a SHA-256 manifest that `tests/test_vendored.py` checks. `scripts/fetch_data.py` and the engine tests in `tests/lss/` come from the same commit. The repo as a whole is `MIT AND Apache-2.0`: this project's code is MIT (`LICENSE`), the vendored engine Apache-2.0 (`src/lss/LICENSE`).
+
+Sun visibility at one point: `uv run python scripts/illumination_point.py LAT LON` (options: `--height`, `--start`, `--days`, `--out`). It writes one `.npz` outside the repo, by default to `$HOME/data/lunar-thermal-surrogate/derived/`.
 
 ## Setup
 
