@@ -46,6 +46,12 @@ markers = [
     "slow: takes more than a few seconds (deselect with -m 'not slow')",
 ]
 
+# Default rules and line length (88). Code copied unchanged from Penumbra Luna is left out: it
+# follows that project's own ruff settings and is never edited here (src/lss/VENDORED.md).
+# tests/lss/conftest.py is this repo's own adapter, so only the copied test folders are excluded.
+[tool.ruff]
+extend-exclude = ["src/lss", "tests/lss/engine", "tests/lss/contract", "scripts/fetch_data.py"]
+
 [dependency-groups]
 dev = [
     "heat1d @ git+https://github.com/phayne/heat1d@5b73a6c1ba5047f59f6210185b37539e46e68136#subdirectory=python",

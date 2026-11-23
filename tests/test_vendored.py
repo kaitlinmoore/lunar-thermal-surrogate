@@ -47,10 +47,14 @@ def test_manifest_is_present():
 def test_no_unlisted_or_missing_files():
     listed, present = set(manifest()), files_on_disk()
     assert present - listed == set(), "files in src/lss that the manifest doesn't list"
-    assert listed - present == set(), "files the manifest lists that are missing from src/lss"
+    assert listed - present == set(), (
+        "files the manifest lists that are missing from src/lss"
+    )
 
 
 @pytest.mark.parametrize("relpath", sorted(manifest()))
 def test_file_matches_manifest(relpath):
     digest = hashlib.sha256((LSS_DIR / relpath).read_bytes()).hexdigest()
-    assert digest == manifest()[relpath], f"src/lss/{relpath} differs from the vendored copy"
+    assert digest == manifest()[relpath], (
+        f"src/lss/{relpath} differs from the vendored copy"
+    )
