@@ -1,0 +1,51 @@
+[project]
+name = "lunar-thermal-surrogate"
+version = "0.1.0"
+description = "1D lunar regolith heat solver driven by terrain-shadowed illumination, with a PhysicsNeMo FNO surrogate."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numba>=0.68.1",
+    "numpy>=2.5.4",
+    "nvidia-physicsnemo>=2.3.0",
+    "pydantic>=2.14.3",
+    "python-dotenv>=1.2.4",
+    "pyyaml>=6.0.3",
+    "rasterio>=1.5.2",
+    "spiceypy>=8.4.0",
+    "torch>=2.14.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.8,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "lunar_thermal"
+
+# PyTorch comes from PyTorch's own CUDA 13.0 wheel index. `explicit = true` means
+# only packages pinned to this index in [tool.uv.sources] are taken from it;
+# everything else still comes from PyPI.
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "gpu: needs a CUDA GPU (skipped when CUDA is unavailable)",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "matplotlib>=3.11.2",
+    "pytest>=9.2.0",
+    "ruff>=0.17.6",
+]
