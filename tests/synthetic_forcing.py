@@ -6,8 +6,9 @@ and to keep tests independent of it, these helpers build the simplest
 realistic forcing: a flat surface on the equator at equinox, lit by a
 clipped-cosine Sun over one synodic month.
 
-Constants and formulas are from Hayne et al. (2017), Appendix A and Table A1
-(arXiv:1711.00977 numbering).
+Constants and formulas are from Hayne et al. (2017), JGR Planets 122,
+2371-2400, doi:10.1002/2017JE005387, Appendix A and Table A1 (the numbering
+matches the arXiv preprint, arXiv:1711.00977).
 """
 
 from __future__ import annotations
@@ -17,8 +18,12 @@ import numpy as np
 #: Solar constant, W m^-2 (Table A1; Kopp and Lean 2011).
 SOLAR_CONSTANT = 1361.0
 
-#: Synodic month, s (Table A1; 29.5306 d).
-SYNODIC_MONTH = 2.55024e6
+#: Synodic month, s: 29.530589 d, the value heat1d and
+#: scripts/illumination_point.py use. Table A1 of Hayne et al. (2017) gives
+#: "2.55024 x 10^6 s (= 29.5306 d)", but those disagree with each other:
+#: 2.55024e6 s is 29.5167 d, and 29.5306 d is 2.55144e6 s. The day count is the
+#: correct synodic month, so it is used here.
+SYNODIC_MONTH = 29.530589 * 86400.0
 
 #: Bond albedo at normal incidence and its angle-dependence constants (Eq. A8, Table A1).
 ALBEDO_A0 = 0.12
