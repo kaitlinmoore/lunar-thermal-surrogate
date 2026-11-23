@@ -49,7 +49,9 @@ from lss.series import SeriesParams, compute_visibility
 SYNODIC_MONTH_DAYS = 29.530589
 
 # Where the vendored engine came from, recorded in every output file for provenance.
-ENGINE_SOURCE = "github.com/kaitlinmoore/nasa-lunar-site-scout@aef153a (src/lss, unchanged)"
+ENGINE_SOURCE = (
+    "github.com/kaitlinmoore/nasa-lunar-site-scout@aef153a (src/lss, unchanged)"
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUT_DIR = Path.home() / "data" / "lunar-thermal-surrogate" / "derived"
@@ -61,7 +63,9 @@ def parse_utc(text: str) -> datetime:
     return t.replace(tzinfo=UTC) if t.tzinfo is None else t.astimezone(UTC)
 
 
-def output_path(out: Path | None, lat: float, lon: float, height_m: float, start: datetime) -> Path:
+def output_path(
+    out: Path | None, lat: float, lon: float, height_m: float, start: datetime
+) -> Path:
     """Resolve --out (a file, a directory, or nothing) to a file path, refusing paths inside the repo."""
     name = f"illum_{lat:+08.3f}_{lon:+08.3f}_{height_m:g}m_{start:%Y%m%dT%H%MZ}.npz"
     if out is None:
@@ -87,11 +91,16 @@ def run(
 ) -> tuple[dict[str, np.ndarray], dict]:
     """Compute the Sun's visibility series; return (arrays, metadata). No file is written here."""
     end = start + timedelta(days=days)
-    hparams = HorizonParams()  # the engine's converged defaults (Penumbra Luna methodology section 3.2)
+    hparams = (
+        HorizonParams()
+    )  # the engine's converged defaults (Penumbra Luna methodology section 3.2)
     sparams = SeriesParams(grid_step_s=grid_step_s)
     stack = resolve(lat, lon, hparams.max_range_m)
 
-    cached = not recompute_horizon and cache_path(key_spec(lat, lon, height_m, hparams, stack)).is_file()
+    cached = (
+        not recompute_horizon
+        and cache_path(key_spec(lat, lon, height_m, hparams, stack)).is_file()
+    )
     # Horizon first, on its own, so its cost (paid once per point and height) is timed separately from
     # the series (paid once per time window). compute_visibility then loads it from the cache.
     t0 = time.perf_counter()
@@ -111,7 +120,9 @@ def run(
         "sun_radius_deg": g.radius_deg,  # apparent angular radius of the disc
         "horizon_at_sun_deg": g.horizon_deg,  # terrain horizon at the disc centre's azimuth
         "sun_visible_fraction": g.fraction,  # limb-darkened share of the disc's light above the horizon
-        "sunrise_s": np.asarray(sun.rises, dtype=float),  # refined to SeriesParams.root_tol_s
+        "sunrise_s": np.asarray(
+            sun.rises, dtype=float
+        ),  # refined to SeriesParams.root_tol_s
         "sunset_s": np.asarray(sun.sets, dtype=float),
         "horizon_azimuth_deg": hz.azimuth_deg,
         "horizon_elevation_deg": hz.elevation_deg,
@@ -125,7 +136,10 @@ def run(
         "window_start_utc": start.isoformat(),
         "window_end_utc": end.isoformat(),
         "duration_days": days,
-        "series_params": {"grid_step_s": sparams.grid_step_s, "root_tol_s": sparams.root_tol_s},
+        "series_params": {
+            "grid_step_s": sparams.grid_step_s,
+            "root_tol_s": sparams.root_tol_s,
+        },
         "horizon_params": {
             "azimuth_step_deg": hparams.azimuth_step_deg,
             "max_range_m": hparams.max_range_m,
@@ -149,8 +163,11 @@ def run(
         "horizon_missing_samples": hz.missing_samples,
         "horizon_total_samples": hz.total_samples,
         "summary": {
-            "sunlit_fraction": sunlit_s / res.duration_s,  # any part of the disc visible
-            "mean_visible_fraction": float(np.trapezoid(g.fraction, g.t_s) / res.duration_s),
+            "sunlit_fraction": sunlit_s
+            / res.duration_s,  # any part of the disc visible
+            "mean_visible_fraction": float(
+                np.trapezoid(g.fraction, g.t_s) / res.duration_s
+            ),
             "sunrises": len(sun.rises),
             "sunsets": len(sun.sets),
             "sun_elevation_min_deg": float(g.elevation_deg.min()),
@@ -174,36 +191,85 @@ def write(path: Path, arrays: dict[str, np.ndarray], meta: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     part = path.with_name(path.name + ".part")
     with part.open("wb") as f:
-        np.savez_compressed(f, **arrays, meta=np.array(json.dumps(meta, sort_keys=True)))
+        np.savez_compressed(
+            f, **arrays, meta=np.array(json.dumps(meta, sort_keys=True))
+        )
     part.replace(path)
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[1])
-    ap.add_argument("lat", type=float, help="latitude, planetocentric degrees (south negative)")
+    ap.add_argument(
+        "lat", type=float, help="latitude, planetocentric degrees (south negative)"
+    )
     ap.add_argument("lon", type=float, help="longitude, degrees east")
-    ap.add_argument("--height", type=float, default=1.0, help="observer height above the ground, m (default 1)")
-    ap.add_argument("--start", type=parse_utc, default=parse_utc("2027-01-01T00:00:00Z"), help="UTC start (ISO)")
-    ap.add_argument("--days", type=float, default=SYNODIC_MONTH_DAYS, help="window length, days (default: 1 lunation)")
-    ap.add_argument("--step", type=float, default=60.0, help="sampling step, s (the engine's grid; default 60)")
-    ap.add_argument("--out", type=Path, default=None, help=f"output .npz file or directory (default {DEFAULT_OUT_DIR})")
-    ap.add_argument("--recompute-horizon", action="store_true", help="ignore a cached horizon (to time it cold)")
+    ap.add_argument(
+        "--height",
+        type=float,
+        default=1.0,
+        help="observer height above the ground, m (default 1)",
+    )
+    ap.add_argument(
+        "--start",
+        type=parse_utc,
+        default=parse_utc("2027-01-01T00:00:00Z"),
+        help="UTC start (ISO)",
+    )
+    ap.add_argument(
+        "--days",
+        type=float,
+        default=SYNODIC_MONTH_DAYS,
+        help="window length, days (default: 1 lunation)",
+    )
+    ap.add_argument(
+        "--step",
+        type=float,
+        default=60.0,
+        help="sampling step, s (the engine's grid; default 60)",
+    )
+    ap.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help=f"output .npz file or directory (default {DEFAULT_OUT_DIR})",
+    )
+    ap.add_argument(
+        "--recompute-horizon",
+        action="store_true",
+        help="ignore a cached horizon (to time it cold)",
+    )
     args = ap.parse_args(argv)
     if args.height <= 0:
         ap.error("--height must be positive")
 
     path = output_path(args.out, args.lat, args.lon, args.height, args.start)
-    arrays, meta = run(args.lat, args.lon, args.height, args.start, args.days, args.step, args.recompute_horizon)
+    arrays, meta = run(
+        args.lat,
+        args.lon,
+        args.height,
+        args.start,
+        args.days,
+        args.step,
+        args.recompute_horizon,
+    )
     write(path, arrays, meta)
 
     s, t = meta["summary"], meta["timing_s"]
-    print(f"point        {args.lat:+.4f}, {args.lon:+.4f} at {args.height:g} m; {meta['window_start_utc']} + {args.days:g} d")
-    print(f"terrain      {meta['fidelity_summary']} (fidelity {meta['fidelity_tier']}); "
-          f"missing ray samples {meta['horizon_missing_samples']}/{meta['horizon_total_samples']}")
-    print(f"sun          sunlit {s['sunlit_fraction']:.4f}, mean visible fraction {s['mean_visible_fraction']:.4f}, "
-          f"{s['sunrises']} sunrises, {s['sunsets']} sunsets, elevation {s['sun_elevation_min_deg']:.2f} to "
-          f"{s['sun_elevation_max_deg']:.2f} deg; horizon max {s['horizon_max_deg']:.2f} deg")
-    print(f"time         horizon {t['horizon']:.1f} s{' (cache)' if t['horizon_from_cache'] else ''}, series {t['series']:.1f} s")
+    print(
+        f"point        {args.lat:+.4f}, {args.lon:+.4f} at {args.height:g} m; {meta['window_start_utc']} + {args.days:g} d"
+    )
+    print(
+        f"terrain      {meta['fidelity_summary']} (fidelity {meta['fidelity_tier']}); "
+        f"missing ray samples {meta['horizon_missing_samples']}/{meta['horizon_total_samples']}"
+    )
+    print(
+        f"sun          sunlit {s['sunlit_fraction']:.4f}, mean visible fraction {s['mean_visible_fraction']:.4f}, "
+        f"{s['sunrises']} sunrises, {s['sunsets']} sunsets, elevation {s['sun_elevation_min_deg']:.2f} to "
+        f"{s['sun_elevation_max_deg']:.2f} deg; horizon max {s['horizon_max_deg']:.2f} deg"
+    )
+    print(
+        f"time         horizon {t['horizon']:.1f} s{' (cache)' if t['horizon_from_cache'] else ''}, series {t['series']:.1f} s"
+    )
     print(f"wrote        {path}")
     return 0
 

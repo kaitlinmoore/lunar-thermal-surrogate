@@ -1,5 +1,7 @@
 # lunar-thermal-surrogate
 
+[![CI](https://github.com/kaitlinmoore/lunar-thermal-surrogate/actions/workflows/ci.yml/badge.svg)](https://github.com/kaitlinmoore/lunar-thermal-surrogate/actions/workflows/ci.yml)
+
 A 1D lunar regolith heat solver driven by Penumbra Luna's terrain-shadowed illumination, and a PhysicsNeMo Fourier neural operator (FNO) trained as its surrogate, evaluated on Penumbra Luna's 23 candidate landing sites.
 
 Status: environment and scaffold only. Nothing below "Setup" is built yet.
@@ -90,6 +92,8 @@ How the CUDA stack is set up:
 ## How to run
 
 _To be written as components land._
+
+CI (GitHub Actions, `.github/workflows/ci.yml`) runs `ruff check`, `ruff format --check` and `pytest -m "not gpu and not data"` on every push and pull request to `main`, in the locked environment on a CPU-only runner; it has no GPU and no `LSS_DATA_DIR`, so the `gpu` and `data` tests run only on a machine that has them.
 
 ## Results
 

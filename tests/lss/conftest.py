@@ -3,7 +3,7 @@
 The test files under tests/lss/ are copied unchanged from Penumbra Luna at commit aef153a
 (tests/engine/ -> tests/lss/engine/, tests/contract/ -> tests/lss/contract/), so they can be
 re-copied whenever the engine is. This file is the only addition, and it is the only place that
-adapts them to this repo. It does two things at collection time, by test name:
+adapts them to this repo. It does three things at collection time, by test name:
 
 1. Marks the tests that read files under LSS_DATA_DIR with `data`, so `uv run pytest -m data`
    runs exactly those. Each one already skips itself when its files are missing (Penumbra Luna's
@@ -12,6 +12,9 @@ adapts them to this repo. It does two things at collection time, by test name:
    load Penumbra Luna's own scripts/ by a path relative to its repo root, need its web API, or
    assert where its pyproject.toml is. Each has its reason below. They are reported as
    "deselected" in the pytest summary, never silently dropped.
+3. Marks as a non-strict expected failure the few tests that fail intermittently on some machines
+   for reasons in the copied test itself. They still run: a pass shows as XPASS, a failure as
+   XFAIL. The fix belongs upstream in Penumbra Luna; the copy here stays unchanged.
 
 Whole files left out of the copy are listed, with reasons, in src/lss/VENDORED.md.
 """
@@ -41,7 +44,10 @@ DATA_TESTS: set[tuple[str, str]] = {
     ("test_horizon.py", "test_site01_kernel_matches_plain_numpy_rays"),
     ("test_slope.py", "test_reproduces_barkers_site01_slope_map"),
     ("test_slope.py", "test_site01_slope_at_the_served_point"),
-    ("test_slope_lonlat.py", "test_mean_slope_agrees_with_the_polar_path_on_the_240m_map"),
+    (
+        "test_slope_lonlat.py",
+        "test_mean_slope_agrees_with_the_polar_path_on_the_240m_map",
+    ),
     ("test_terrain.py", "test_layer_metadata_matches_files"),
     ("test_terrain.py", "test_site01_height_agrees_across_layers"),
 }
@@ -57,14 +63,27 @@ DESELECTED: dict[tuple[str, str], str] = {
     ("test_slope.py", "test_terrain_radii_use_the_decided_layers"): (
         "loads Penumbra Luna's scripts/precompute_terrain.py, which is not copied"
     ),
-    ("test_slope.py", "test_artemis_regions_use_the_5m_map_only_where_their_point_lies_on_one"): (
-        "loads Penumbra Luna's scripts/precompute_terrain.py, which is not copied"
-    ),
-    ("test_slope.py", "test_apollo_sites_use_the_global_map_with_the_approved_limitation"): (
-        "loads Penumbra Luna's scripts/precompute_terrain.py, which is not copied"
-    ),
-    ("test_terrain_views.py", "test_artemis_views_use_the_5m_map_only_where_their_point_lies_on_one"): (
-        "loads Penumbra Luna's scripts/terrain_views.py, which is not copied"
+    (
+        "test_slope.py",
+        "test_artemis_regions_use_the_5m_map_only_where_their_point_lies_on_one",
+    ): ("loads Penumbra Luna's scripts/precompute_terrain.py, which is not copied"),
+    (
+        "test_slope.py",
+        "test_apollo_sites_use_the_global_map_with_the_approved_limitation",
+    ): ("loads Penumbra Luna's scripts/precompute_terrain.py, which is not copied"),
+    (
+        "test_terrain_views.py",
+        "test_artemis_views_use_the_5m_map_only_where_their_point_lies_on_one",
+    ): ("loads Penumbra Luna's scripts/terrain_views.py, which is not copied"),
+}
+
+
+# (file name, test name including any [parameter] suffix) -> why it can fail on some machines.
+FLAKY: dict[tuple[str, str], str] = {
+    ("test_series.py", "test_fraction_limits_and_half[True]"): (
+        "asserts the visible fraction is exactly 0.0 when the Sun is below the horizon; on a GitHub "
+        "hosted runner it returned 4.4e-19 on one run and passed on the next (CPU-dependent rounding). "
+        "Upstream fix for Penumbra Luna: compare with a tolerance"
     ),
 }
 
@@ -74,7 +93,9 @@ def _key(item: pytest.Item) -> tuple[str, str]:
     return (item.path.name, getattr(item, "originalname", item.name))
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
     keep, dropped = [], []
     for item in items:
         key = _key(item)
@@ -83,6 +104,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             continue
         if key in DATA_TESTS:
             item.add_marker(pytest.mark.data)
+        reason = FLAKY.get((item.path.name, item.name))
+        if reason is not None:
+            item.add_marker(pytest.mark.xfail(reason=reason, strict=False))
         keep.append(item)
     if dropped:
         config.hook.pytest_deselected(items=dropped)

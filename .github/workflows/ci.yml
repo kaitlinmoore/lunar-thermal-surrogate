@@ -1,0 +1,68 @@
+# Lint, format check and the CPU test suite on every push to main and every pull request to main.
+#
+# The runner has no GPU and no LSS_DATA_DIR, so tests marked `gpu` or `data` are deselected
+# (markers in pyproject.toml; `data` is applied in tests/lss/conftest.py). Everything else runs
+# against the same locked environment as the laptop, including the CUDA 13 PyTorch build from the
+# cu130 index, which runs on CPU here.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or PR cancels the run it supersedes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Restores uv's cache (downloaded wheels) keyed on uv.lock, and saves it after a successful
+      # run. The uv version matches the one recorded in the README's Environment table.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          version: "0.13.8"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      # With no argument, uv installs the version named in .python-version.
+      - name: Install Python
+        run: uv python install
+
+      # --locked fails if uv.lock is out of date with pyproject.toml instead of re-resolving.
+      - name: Install dependencies
+        id: sync
+        run: uv sync --locked
+
+      # The environment is several GB (PyTorch with its CUDA libraries); this records the headroom.
+      - name: Disk usage
+        run: df -h / && du -sh .venv
+
+      # The three checks below each run once dependencies are installed, even if an earlier
+      # check failed, so one run reports all of them.
+      - name: Lint
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        run: uv run ruff check
+
+      - name: Format check
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        run: uv run ruff format --check
+
+      - name: Tests (CPU, no data)
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        run: uv run pytest -m "not gpu and not data"
