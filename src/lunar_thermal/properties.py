@@ -15,10 +15,9 @@ Williams, J.-P., Greenhagen, B. T., Aharonson, O., Elder, C. M., Lucey, P. G.,
 from the Diviner Lunar Radiometer Experiment. Journal of Geophysical Research:
 Planets, 122, 2371-2400. https://doi.org/10.1002/2017JE005387
 
-Equation and table numbers cited below are those of the arXiv preprint of that
-paper (arXiv:1711.00977, the version openly available), Appendix A. The
-published version was not accessible when this was written; if its numbering
-differs, the citations here need updating.
+Equation, table, figure and section numbers cited below are those of the
+published article. Its Appendix A numbering (Eqs. A1-A36, Tables A1-A2)
+matches the arXiv preprint, arXiv:1711.00977.
 
 Units are SI throughout: metres, kelvin, kilograms, seconds, watts.
 """
@@ -36,22 +35,41 @@ STEFAN_BOLTZMANN = 5.670374419e-8
 #: Reference temperature in the radiative-conductivity term, K (Eq. A4).
 RADIATIVE_REFERENCE_TEMPERATURE = 350.0
 
+#: Measured global mean of the scale height H, m: the default. Hayne et al.
+#: (2017), Section 4: the H values fitted to Diviner have a global (latitude
+#: +/-60 deg) average and mode of 6.8 cm, standard deviation ~0.7 cm; Figure 9
+#: gives the mean as 0.068 m; the abstract says "~7 cm".
+H_MEASURED_MEAN = 0.068
+
+#: Scale height H of the paper's standard model, m (Table A1, "avg. = 0.06 m";
+#: the value of the standard-model runs in Figures A2 and A3). Used through
+#: `RegolithParams.standard_model` wherever a result reproduces the paper.
+H_STANDARD_MODEL = 0.06
+
 
 @dataclass(frozen=True)
 class RegolithParams:
     """Regolith parameters for one column, defaulting to Hayne et al. (2017).
 
-    Every default is the "standard model" value in Table A1 of Hayne et al.
+    Every default except ``H`` is the value in Table A1 of Hayne et al.
     (2017), the parameter table for the thermal model in their Appendix A.
+    ``H`` defaults to the paper's measured global mean, 0.068 m, rather than
+    Table A1's 0.06 m. `standard_model` gives the paper's standard model, which
+    differs from the default in ``H`` only.
 
     Attributes:
-        H: Scale height of the density and conductivity profiles, m (Eq. A2;
-            Table A1, "Scale factor H: 0 to > 0.2 m (avg. = 0.06 m)"). The
-            paper's main text gives a global mean of 0.068 m (Section 4,
-            Figure 9) and the abstract says "~7 cm"; Table A1's 0.06 m is
-            used here because it is the value the paper's own standard model
-            runs use (Figures A2, A3). This is an open question for the
-            project, not a settled choice.
+        H: Scale height of the density and conductivity profiles, m (Eq. A2).
+            Default `H_MEASURED_MEAN`, 0.068 m: the global (+/-60 deg) mean
+            and mode of the H values Hayne et al. fit to Diviner (Section 4,
+            Figure 9; the abstract's "~7 cm"). This project predicts
+            temperatures at real sites, so the default is the measured value
+            rather than the paper's standard-model setting (Table A1, "0 to
+            > 0.2 m (avg. = 0.06 m)", `H_STANDARD_MODEL`). It is also the
+            better fit of the two to the paper's Figure A2 Diviner night
+            points at the equator (docs/methodology.md). At the polar sites
+            the default only stands in for an unknown: they lie outside both
+            the +/-60 deg range the mean comes from and the +/-70 deg extent
+            of the paper's H map (Figure 7).
         rho_s: Density at the surface, kg m^-3 (Eq. A2; Table A1, 1100).
         rho_d: Density at depth (z >> H), kg m^-3 (Eq. A2; Table A1, 1800).
         k_s: Contact conductivity at the surface, W m^-1 K^-1 (Eq. A5; Table
@@ -74,7 +92,7 @@ class RegolithParams:
     ``chi = 0`` and ``cp_coeffs = (c, 0, 0, 0, 0)``.
     """
 
-    H: float = 0.06
+    H: float = H_MEASURED_MEAN
     rho_s: float = 1100.0
     rho_d: float = 1800.0
     k_s: float = 7.4e-4
@@ -114,6 +132,19 @@ class RegolithParams:
         # Store as a tuple of floats so the dataclass stays hashable even if a
         # list was passed.
         object.__setattr__(self, "cp_coeffs", tuple(float(c) for c in self.cp_coeffs))
+
+    @classmethod
+    def standard_model(cls) -> RegolithParams:
+        """The standard model of Hayne et al. (2017): every parameter from Table A1.
+
+        That is the default with ``H = H_STANDARD_MODEL`` (0.06 m) instead of
+        the measured mean. Use it for anything that reproduces or compares
+        with the paper's own model runs (Figures A1-A3, Table A2) or with
+        `heat1d` set up as the paper's standard case, so those comparisons
+        keep their meaning whatever the default is. Other fields can be
+        changed with `dataclasses.replace`.
+        """
+        return cls(H=H_STANDARD_MODEL)
 
 
 def density(z: ArrayLike, params: RegolithParams) -> NDArray[np.float64]:

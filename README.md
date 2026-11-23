@@ -4,7 +4,7 @@
 
 A 1D lunar regolith heat solver driven by Penumbra Luna's terrain-shadowed illumination, and a PhysicsNeMo Fourier neural operator (FNO) trained as its surrogate, evaluated on Penumbra Luna's 23 candidate landing sites.
 
-Status: environment and scaffold only. Nothing below "Setup" is built yet.
+Status: the GPU environment, the vendored illumination engine and the regolith solver are built, and the solver is validated (analytic tests, triangulation against heat1d, a check against Diviner-derived values). Training data, the surrogate and the held-out evaluation are not started.
 
 ## Question
 
@@ -31,7 +31,7 @@ Dataset details, citations and terms come from Penumbra Luna's dataset registry 
 
 `src/lss/` is Penumbra Luna's illumination engine (Apache-2.0), copied unchanged from commit `aef153a` of https://github.com/kaitlinmoore/nasa-lunar-site-scout. It is never edited here: changes go to Penumbra Luna first and are then copied again. [`src/lss/VENDORED.md`](src/lss/VENDORED.md) records what was copied and left out, and why, plus a SHA-256 manifest that `tests/test_vendored.py` checks. `scripts/fetch_data.py` and the engine tests in `tests/lss/` come from the same commit. The repo as a whole is `MIT AND Apache-2.0`: this project's code is MIT (`LICENSE`), the vendored engine Apache-2.0 (`src/lss/LICENSE`).
 
-Sun visibility at one point: `uv run python scripts/illumination_point.py LAT LON` (options: `--height`, `--start`, `--days`, `--out`). It writes one `.npz` outside the repo, by default to `$HOME/data/lunar-thermal-surrogate/derived/`.
+Sun visibility at one point: `scripts/illumination_point.py` (see "How to run").
 
 ## Setup
 
@@ -91,13 +91,25 @@ How the CUDA stack is set up:
 
 ## How to run
 
-_To be written as components land._
+All commands run from the repo root, with `UV_PROJECT_ENVIRONMENT` set (see Setup).
+
+| What | Command | Notes |
+|---|---|---|
+| Environment report | `uv run python scripts/env_report.py` | Prints the GPU, driver, CUDA, PyTorch and PhysicsNeMo versions recorded in "Environment" |
+| Check the data | `uv run python scripts/fetch_data.py --verify` | Re-hashes every file in `LSS_DATA_DIR` against `MANIFEST.json`. `--list` shows the catalog and local status; with no options it downloads whatever is missing |
+| Sun visibility at one point | `uv run python scripts/illumination_point.py LAT LON` | Planetocentric degrees, south negative. Options `--height`, `--start`, `--days`, `--step`, `--out`. Writes one `.npz` outside the repo, by default to `$HOME/data/lunar-thermal-surrogate/derived/` |
+| Solver triangulation and Diviner check | `uv run python scripts/triangulate_heat1d.py` | Runs every case in `docs/methodology.md`, "Solver triangulation and Diviner check". Writes a results `.npz` outside the repo (`--out`), the figures in `docs/figures/` (`--figures`) and the tables to stdout. `--workers` sets the number of heat1d processes |
+| All tests | `uv run pytest` | Tests marked `gpu` or `data` skip themselves when there is no CUDA GPU or no `LSS_DATA_DIR` |
+| GPU tests | `uv run pytest -m gpu` | PhysicsNeMo FNO smoke tests on the GPU |
+| Data tests | `uv run pytest -m data` | Copied engine tests that read terrain and kernels under `LSS_DATA_DIR` |
+| Without the slow tests | `uv run pytest -m "not slow"` | `slow` marks tests that take more than a few seconds, such as the heat1d regression run |
+| What CI runs | `uv run ruff check && uv run ruff format --check && uv run pytest -m "not gpu and not data"` | |
 
 CI (GitHub Actions, `.github/workflows/ci.yml`) runs `ruff check`, `ruff format --check` and `pytest -m "not gpu and not data"` on every push and pull request to `main`, in the locked environment on a CPU-only runner; it has no GPU and no `LSS_DATA_DIR`, so the `gpu` and `data` tests run only on a machine that has them.
 
 ## Results
 
-_None yet._
+No surrogate results exist yet. The solver's validation so far: analytic tests, a convergence study, triangulation against heat1d and a comparison with the Diviner-derived values in Hayne et al. (2017). It is in [`docs/methodology.md`](docs/methodology.md), "Ground-truth solver" and "Solver triangulation and Diviner check". All of it is exploratory; nothing has been frozen or run on the held-out sites.
 
 ## Methodology
 
@@ -109,4 +121,13 @@ _To be written._ A known limit from the design: a 1D model with direct sunlight 
 
 ## AI assistance
 
-_To be written._ The environment setup and scaffold were written with AI assistance (Claude Code) and checked by running the GPU smoke tests on the target machine.
+**What was AI-assisted.** This project's code and documentation were written with AI assistance (Claude Code): the environment setup and scaffold, the regolith properties and solver (`src/lunar_thermal/`), the tests, the scripts, and the docs, including this README and `docs/methodology.md`. The vendored illumination engine in `src/lss/` was AI-assisted upstream in Penumbra Luna: its file headers say it was generated with Claude and reviewed by that project's author. The author set the project's scope and made its open decisions, for example the default H. Many of the proposals and much of the evidence behind those decisions were prepared with AI assistance.
+
+**How the work was checked.**
+- **Analytic tests.** The solver is tested piece by piece against exact solutions and an independent integration, and the energy budget is checked (`tests/`; table in the methodology).
+- **Triangulation.** The solver is run against heat1d, Paul Hayne's independent implementation of the same equations, on identical forcing. The differences are explained by heat1d's own discretization error.
+- **Diviner check.** The solver's temperatures are compared with the Diviner-derived values reported in Hayne et al. (2017). This is a check of the physical model rather than of the code, and those data were also used to fit the model's parameters.
+- **CI.** Lint, format and the CPU test suite run on every pull request.
+- **GPU smoke tests.** These were run on the target machine.
+
+These checks test the code's behavior. They are not a line-by-line human review of all of it.
