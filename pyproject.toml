@@ -43,10 +43,12 @@ testpaths = ["tests"]
 markers = [
     "gpu: needs a CUDA GPU (skipped when CUDA is unavailable)",
     "data: needs LSS_DATA_DIR data; skipped when absent",
+    "slow: takes more than a few seconds (deselect with -m 'not slow')",
 ]
 
 [dependency-groups]
 dev = [
+    "heat1d @ git+https://github.com/phayne/heat1d@5b73a6c1ba5047f59f6210185b37539e46e68136#subdirectory=python",
     "ipykernel>=7.4.0",
     "matplotlib>=3.11.2",
     "pytest>=9.2.0",
