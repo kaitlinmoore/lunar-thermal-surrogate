@@ -19,7 +19,7 @@ A 1D regolith heat solver driven by Penumbra Luna's terrain-shadowed illuminatio
 
 ## Environment
 WSL2 (Ubuntu): PhysicsNeMo supports Windows only through WSL. Claude Code runs inside WSL. The repo lives at C:\dev\GitHub\lunar-thermal-surrogate (/mnt/c/dev/GitHub/lunar-thermal-surrogate from WSL); the uv environment lives in the WSL filesystem at $HOME/.venvs/lunar-thermal-surrogate, set by UV_PROJECT_ENVIRONMENT in .envrc. uv for all Python. Python version and CUDA backend: set by the environment setup step and recorded in the README.
-GPU: RTX 5080 (Blackwell, sm_120). PyTorch must be built for CUDA 12.8 or newer; `torch.cuda.get_arch_list()` must include sm_120. Never install a Linux NVIDIA driver inside WSL.
+GPU: RTX 5080 Laptop GPU (Blackwell, sm_120, 16 GB). PyTorch must be built for CUDA 12.8 or newer; `torch.cuda.get_arch_list()` must include sm_120. Never install a Linux NVIDIA driver inside WSL.
 Key deps: nvidia-physicsnemo, torch, numpy, numba; heat1d for tests and triangulation only; the Penumbra Luna illumination code is copied in, not imported.
 
 ## Project-specific
