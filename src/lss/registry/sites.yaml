@@ -1,0 +1,642 @@
+# SI-assisted: generated with Claude (Anthropic) and reviewed by the project author. See README "AI usage".
+#
+# Curated sites (plan F5), owned by stream E (sites) since 2026-11-16 (stream A before). lss.registry.sites
+# loads these as contract Site objects for /api/sites and fixtures/sites.json (stream C api generates those
+# from here).
+#
+# Visitor-facing: name, short_name, subtitle, description and source. Keep internal notes in comments.
+# `regions`: region tags (contract Site.regions), used by /api/compare `across.region` and the NL layer. Each
+# tag's member list is Kaitlin's. shackleton (2026-11-16): Shackleton Rim, Connecting Ridge, Peak near
+# Shackleton, de Gerlache Rim.
+#
+# Served point rule (Kaitlin, 2026-11-15): the centroid of the largest Barker et al. (2021) region of interest
+# (RoI) where the PGDA product 78 tile has RoIs; otherwise the Mazarico et al. (2011) coordinate, checked for
+# slope on the 5 m map. Barker's RoIs: connected 5 m pixels with average illumination > 70% at 1 m over
+# 2024-2025, area > 2500 m2. Centroid = centre of the 5 m pixel containing the mean of the RoI's pixel
+# centres (lss.registry.rois): this reproduces all seven Table 2 centroids at Site01 exactly.
+#
+# `point` is engine provenance (not in the contract): how the location was found, and the 5 m tile.
+# Coordinates: south polar stereographic metres (ps_m) on the 1737.4 km sphere, MOON_ME / DE421; lat/lon from
+# ps_m (lss.terrain.core.latlon_from_ps), 6 decimals (~4 mm at the pole).
+
+sites:
+  - id: pgda-site01
+    name: Site01 Connecting ridge (Barker 2021 RoI 4)
+    short_name: Connecting Ridge
+    subtitle: PGDA Site01 · Barker 2021 RoI 4
+    regions: [shackleton]
+    category: pgda
+    location: {lat: -89.452675, lon: -137.148653}
+    point: {rule: largest_roi_centroid, tile: Site01, roi: 4, roi_area_m2: 13300, ps_m: [-11287.5, -12167.5], centroid_from: Barker et al. (2021) Table 2}
+    description: >-
+      A ridge at the Moon's south pole, about 17 km from the pole, connecting the rims of Shackleton
+      crater and de Gerlache crater (Barker et al. 2021). Because it is high and close to the pole,
+      where the Sun always stays near the horizon, parts of it see the Sun most of the time: Mazarico
+      et al. (2011) ranked it first of the south polar sites for average illumination (their site 1),
+      and Barker et al. (2021) studied it as a potential landing site. They found seven regions on it
+      where, at 1 m above the ground in 2024-2025, more than 70% of the Sun's disc is in view on
+      average. The point used here is the centre of the largest, region 4.
+    dataset_ids: [pgda_78_site_dems, pgda_81_mosaic_5m, pgda_90_south_pole_dems]
+    has_dem_clones: true
+    source: >-
+      Barker, M. K., et al. (2021), Planet. Space Sci. 203, 105119, doi:10.1016/j.pss.2020.105119, Table 2:
+      centroid of Site01 region of interest 4, polar stereographic x = -11.2875 km, y = -12.1675 km
+      (89.452675 S, 222.851347 E), in the PGDA product 78 Site01 DEM tile. Site01 (Connecting ridge) is
+      site 1 of Mazarico, E., et al. (2011), Icarus 211, 1066-1081, doi:10.1016/j.icarus.2010.10.030.
+
+  - id: pgda-site04
+    name: Site04 Shackleton rim (Barker 2021 RoI 1)
+    short_name: Shackleton Rim
+    subtitle: PGDA Site04 · Barker 2021 RoI 1
+    regions: [shackleton]
+    category: pgda
+    location: {lat: -89.761966, lon: -157.067197}
+    point: {rule: largest_roi_centroid, tile: Site04, roi: 1, roi_area_m2: 6975, ps_m: [-2812.5, -6647.5], centroid_from: Site04_ROIs.tgz (pixel containing the mean)}
+    description: >-
+      A point on the rim of Shackleton crater, about 7 km from the Moon's south pole. Mazarico et al.
+      (2011) ranked the south polar sites by average illumination; this is their site 4. Barker et al.
+      (2021) mapped it at 5 m as a potential landing site and outlined four regions on it where, at 1 m
+      above the ground in 2024-2025, more than 70% of the Sun's disc is in view on average. The point
+      used here is the centre of the largest, region 1.
+    dataset_ids: [pgda_78_site_dems, pgda_81_mosaic_5m, pgda_90_south_pole_dems]
+    has_dem_clones: true
+    source: >-
+      Centroid of region of interest 1 (the largest, 279 pixels = 6,975 m2) in Barker et al. (2021)'s
+      Site04_ROIs.tgz (PGDA product 78; Barker, M. K., et al. (2021), Planet. Space Sci. 203, 105119,
+      doi:10.1016/j.pss.2020.105119): polar stereographic x = -2.8125 km, y = -6.6475 km: the centre of the
+      5 m pixel containing the mean of the region's pixel centres (the rule that reproduces Barker's Table 2
+      centroids at Site01). Site 4 of Mazarico, E., et al. (2011), Icarus 211, 1066-1081,
+      doi:10.1016/j.icarus.2010.10.030.
+
+  - id: pgda-site07
+    name: Site07 Peak near Shackleton (Barker 2021 RoI 2)
+    short_name: Peak near Shackleton
+    subtitle: PGDA Site07 · Barker 2021 RoI 2
+    regions: [shackleton]
+    category: pgda
+    location: {lat: -88.807326, lon: 123.776844}
+    point: {rule: largest_roi_centroid, tile: Site07, roi: 2, roi_area_m2: 16550, ps_m: [30062.5, -20107.5], centroid_from: Site07_ROIs.tgz (pixel containing the mean)}
+    description: >-
+      An isolated peak near Shackleton crater, on the Moon's far side, about 36 km from the south pole
+      (Barker et al. 2021). Mazarico et al. (2011) ranked the south polar sites by average illumination;
+      this is their site 7. Barker et al. (2021) mapped it at 5 m as a potential landing site and outlined
+      two regions on it where, at 1 m above the ground in 2024-2025, more than 70% of the Sun's disc is in
+      view on average. The point used here is the centre of the larger, region 2.
+    dataset_ids: [pgda_78_site_dems, pgda_81_mosaic_5m, pgda_90_south_pole_dems]
+    has_dem_clones: true
+    source: >-
+      Centroid of region of interest 2 (the largest, 662 pixels = 16,550 m2) in Barker et al. (2021)'s
+      Site07_ROIs.tgz (PGDA product 78; Barker, M. K., et al. (2021), Planet. Space Sci. 203, 105119,
+      doi:10.1016/j.pss.2020.105119): polar stereographic x = 30.0625 km, y = -20.1075 km: the centre of the
+      5 m pixel containing the mean of the region's pixel centres (the rule that reproduces Barker's Table 2
+      centroids at Site01). Site 7 of Mazarico, E., et al. (2011), Icarus 211, 1066-1081,
+      doi:10.1016/j.icarus.2010.10.030.
+
+  - id: pgda-site11
+    name: Site11 de Gerlache rim (Barker 2021 RoI 1)
+    short_name: de Gerlache Rim
+    subtitle: PGDA Site11 · Barker 2021 RoI 1
+    regions: [shackleton]
+    category: pgda
+    location: {lat: -88.668256, lon: -68.375764}
+    point: {rule: largest_roi_centroid, tile: Site11, roi: 1, roi_area_m2: 13325, ps_m: [-37542.5, 14882.5], centroid_from: Site11_ROIs.tgz (pixel containing the mean)}
+    description: >-
+      A point on the rim of de Gerlache crater, about 40 km from the Moon's south pole. Mazarico et al.
+      (2011) ranked the south polar sites by average illumination; this is their site 11. Barker et al.
+      (2021) mapped it at 5 m as a potential landing site and outlined four regions on it where, at 1 m
+      above the ground in 2024-2025, more than 70% of the Sun's disc is in view on average. The point
+      used here is the centre of the largest, region 1.
+    dataset_ids: [pgda_78_site_dems, pgda_81_mosaic_5m, pgda_90_south_pole_dems]
+    has_dem_clones: true
+    source: >-
+      Centroid of region of interest 1 (the largest, 533 pixels = 13,325 m2) in Barker et al. (2021)'s
+      Site11_ROIs.tgz (PGDA product 78; Barker, M. K., et al. (2021), Planet. Space Sci. 203, 105119,
+      doi:10.1016/j.pss.2020.105119): polar stereographic x = -37.5425 km, y = 14.8825 km: the centre of the
+      5 m pixel containing the mean of the region's pixel centres (the rule that reproduces Barker's Table 2
+      centroids at Site01). Site 11 of Mazarico, E., et al. (2011), Icarus 211, 1066-1081,
+      doi:10.1016/j.icarus.2010.10.030.
+
+  # Site06, Site20, Site23, Site42: the sentences on the 5 m map in 2028 answer the G2 review (M3; M2 for
+  # Site20). Every number in them is pinned to the served files, the 5 m maps and A's validation fixture by
+  # tests/engine/test_sites_mazarico_text.py. Wording approved by Kaitlin 2026-11-16.
+  - id: pgda-site06
+    name: Site06 Nobile rim 1 (Mazarico 2011 site 6)
+    short_name: Nobile Rim
+    subtitle: PGDA Site06 · Mazarico 2011 rank 6
+    category: pgda
+    location: {lat: -85.30, lon: 37.07}
+    point: {rule: mazarico_2011, tile: Site06, ps_m: [85957.726, 113780.267], centroid_from: "Mazarico et al. (2011) Table 3, rank 6"}
+    description: >-
+      A point on the rim of Nobile crater, about 143 km from the Moon's south pole. Mazarico et al. (2011)
+      listed the 50 most illuminated spots near the south pole on a 240 m map; this one ranks 6th, with 86% of
+      the Sun's disc in view on average at surface level over 1970-2044. Barker et al. (2021) made the 5 m map
+      of the site (PGDA product 78) that is used here. The point is Mazarico's published coordinate, given to
+      0.01 degrees (about 300 m in latitude). On the 5 m map used here, the point is on an 8° slope. The Sun
+      never rises more than about 6° above the horizon here, and close to the ground the slope beside the
+      point hides it: in 2028, at 1 m above the ground, 41% of the Sun's disc is in view on average (some of
+      the Sun is in view 47% of the time), rising to 83% at 5 m and 87% at 10 m. Mazarico's 240 m map is too
+      coarse to show this slope; repeating their method on a 240 m map gives 87% at 10 m, close to their 87%.
+    dataset_ids: [pgda_78_site_dems, pgda_90_south_pole_dems]
+    has_dem_clones: true
+    source: >-
+      Mazarico, E., et al. (2011), Icarus 211, 1066-1081, doi:10.1016/j.icarus.2010.10.030, Table 3
+      (south pole, rank 6): 37.07 E, 85.30 S (polar stereographic x = 85.958 km,
+      y = 113.780 km on the 1737.4 km sphere). Site name and 5 m map: PGDA product 78 (Barker, M. K.,
+      et al. (2021), Planet. Space Sci. 203, 105119, doi:10.1016/j.pss.2020.105119).
+
+  # Site20 description: the published-coordinate check (Kaitlin's rule, 2026-11-16; scripts/mazarico_node.py,
+  # docs/methodology.md section 1.4.1). Wording approved by Kaitlin 2026-11-16.
+  - id: pgda-site20
+    name: Site20 Leibnitz beta plateau (Mazarico 2011 site 20)
+    short_name: Leibnitz Beta Plateau
+    subtitle: PGDA Site20 · Mazarico 2011 rank 20
+    category: pgda
+    location: {lat: -85.43, lon: 31.73}
+    point: {rule: mazarico_2011, tile: Site20, ps_m: [72919.046, 117927.84], centroid_from: "Mazarico et al. (2011) Table 3, rank 20"}
+    description: >-
+      A point on the Leibnitz beta plateau, about 139 km from the Moon's south pole. Mazarico et al. (2011)
+      listed the 50 most illuminated spots near the south pole on a 240 m map; this one ranks 20th, with 82%
+      of the Sun's disc in view on average at surface level over 1970-2044. Barker et al. (2021) made the 5 m
+      map of the site (PGDA product 78) that is used here. The point is Mazarico's published coordinate, given
+      to 0.01 degrees (about 300 m in latitude). On the maps used here, this coordinate lies on the side of
+      the plateau rather than its best-lit ground. Repeating Mazarico's method there gives about 25% of the
+      Sun's disc in view at surface level (46% at 10 m), against their 82% (83%). The two nearest points of a
+      240 m grid, 85 and 158 m away, do no better than 58% at 10 m, so the published coordinate is kept. On
+      the 5 m map in 2028, 14% of the Sun's disc is in view on average at 1 m above the ground (some of the
+      Sun is in view 17% of the time) and 30% at 10 m. Results for this site describe that point.
+    dataset_ids: [pgda_78_site_dems, pgda_90_south_pole_dems]
+    has_dem_clones: true
+    source: >-
+      Mazarico, E., et al. (2011), Icarus 211, 1066-1081, doi:10.1016/j.icarus.2010.10.030, Table 3
+      (south pole, rank 20): 31.73 E, 85.43 S (polar stereographic x = 72.919 km,
+      y = 117.928 km on the 1737.4 km sphere). Site name and 5 m map: PGDA product 78 (Barker, M. K.,
+      et al. (2021), Planet. Space Sci. 203, 105119, doi:10.1016/j.pss.2020.105119).
+
+  - id: pgda-site23
+    name: Site23 Malapert massif (Mazarico 2011 site 23)
+    short_name: Malapert Massif
+    subtitle: PGDA Site23 · Mazarico 2011 rank 23
+    category: pgda
+    location: {lat: -85.97, lon: -2.30}
+    point: {rule: mazarico_2011, tile: Site23, ps_m: [-4906.252, 122155.02], centroid_from: "Mazarico et al. (2011) Table 3, rank 23"}
+    description: >-
+      A point on the Malapert massif, about 122 km from the Moon's south pole. Mazarico et al. (2011) listed
+      the 50 most illuminated spots near the south pole on a 240 m map; this one ranks 23rd, with 82% of the
+      Sun's disc in view on average at surface level over 1970-2044. Mazarico et al. (2011) also note that
+      high ground such as Mons Malapert has good visibility of the Earth. Barker et al. (2021) made the 5 m
+      map of the site (PGDA product 78) that is used here. The point is Mazarico's published coordinate, given
+      to 0.01 degrees (about 300 m in latitude). On the 5 m map used here, the point is on a 7° slope. The Sun
+      never rises more than about 6° above the horizon here, and close to the ground the slope beside the
+      point hides it: in 2028, at 1 m above the ground, 45% of the Sun's disc is in view on average (some of
+      the Sun is in view 52% of the time), rising to 67% at 2 m and 82% at 5 m and 10 m. Mazarico's 240 m map
+      is too coarse to show this slope; repeating their method on a 240 m map gives 82% at 10 m, close to
+      their 83%. The Earth is in view 51% of 2028 at 1 m and 82% at 10 m, the most of the eight PGDA sites at
+      that height.
+    dataset_ids: [pgda_78_site_dems, pgda_90_south_pole_dems]
+    has_dem_clones: true
+    source: >-
+      Mazarico, E., et al. (2011), Icarus 211, 1066-1081, doi:10.1016/j.icarus.2010.10.030, Table 3
+      (south pole, rank 23): 357.70 E, 85.97 S (polar stereographic x = -4.906 km,
+      y = 122.155 km on the 1737.4 km sphere). Site name and 5 m map: PGDA product 78 (Barker, M. K.,
+      et al. (2021), Planet. Space Sci. 203, 105119, doi:10.1016/j.pss.2020.105119).
+
+  - id: pgda-site42
+    name: Site42 de Gerlache-Kocher massif (Mazarico 2011 site 42)
+    short_name: de Gerlache–Kocher Massif
+    subtitle: PGDA Site42 · Mazarico 2011 rank 42
+    category: pgda
+    location: {lat: -85.83, lon: -116.35}
+    point: {rule: mazarico_2011, tile: Site42, ps_m: [-113360.357, -56149.321], centroid_from: "Mazarico et al. (2011) Table 3, rank 42"}
+    description: >-
+      A point on the massif between de Gerlache and Kocher craters, about 127 km from the Moon's south pole.
+      Mazarico et al. (2011) listed the 50 most illuminated spots near the south pole on a 240 m map; this one
+      ranks 42nd, with 80% of the Sun's disc in view on average at surface level over 1970-2044. Barker et al.
+      (2021) made the 5 m map of the site (PGDA product 78) that is used here. The point is Mazarico's
+      published coordinate, given to 0.01 degrees (about 300 m in latitude). On the 5 m map used here, the
+      point is on a 7° slope. The Sun never rises more than about 6° above the horizon here, and close to the
+      ground the slope beside the point hides it: in 2028, at 1 m above the ground, 44% of the Sun's disc is
+      in view on average (some of the Sun is in view 48% of the time), rising to 67% at 5 m and 78% at 10 m.
+      Mazarico's 240 m map is too coarse to show this slope; repeating their method on a 240 m map gives 78%
+      at 10 m, against their 80%.
+    dataset_ids: [pgda_78_site_dems, pgda_90_south_pole_dems]
+    has_dem_clones: true
+    source: >-
+      Mazarico, E., et al. (2011), Icarus 211, 1066-1081, doi:10.1016/j.icarus.2010.10.030, Table 3
+      (south pole, rank 42): 243.65 E, 85.83 S (polar stereographic x = -113.360 km,
+      y = -56.149 km on the 1737.4 km sphere). Site name and 5 m map: PGDA product 78 (Barker, M. K.,
+      et al. (2021), Planet. Space Sci. 203, 105119, doi:10.1016/j.pss.2020.105119).
+
+  # Apollo landing sites (Kaitlin, 2026-11-16): the Lunar Module descent stage position from Wagner et al. (2017),
+  # LROC NAC images, read from the LROC PDS archive table (LRO-L-LROC-5-RDR-V1.0, ANTHROPOGENIC_OBJECTS, DBF field
+  # LONGITUDE in -180..180) and identical on NASA NSSDCA's Apollo Landing Site Coordinates page ("planetocentric Mean
+  # Earth/Polar Axis Lunar Reference System - DE421 ephemeris"): the engine's MOON_ME / DE421 frame. Uncertainty is
+  # the table's "Uncertainty (m)" column. Place names and UT landing dates: NSSDCA mission pages. No `point`: there
+  # is no PGDA product 78 tile here, so site_points() (polar sites only) does not list these. dataset_ids:
+  # [lola_ldem_128], the global coarse layer (C7; docs/methodology.md sections 3.5, 5.6.1) that their horizons
+  # and slopes use (Kaitlin, 2026-11-16).
+  - id: apollo-11
+    name: Apollo 11 landing site (Lunar Module Eagle descent stage)
+    short_name: Apollo 11
+    subtitle: Mare Tranquillitatis · 20 July 1969
+    category: apollo
+    location: {lat: 0.67416, lon: 23.47314}
+    description: >-
+      Where Apollo 11's lunar module Eagle landed on 20 July 1969 (UT), in Mare Tranquillitatis, the Sea of Tranquility, near the Moon's equator. The point is the lunar
+      module's descent stage, which is still on the surface, as located in Lunar Reconnaissance Orbiter
+      camera images (Wagner et al. 2017), to within 0.3 m.
+    dataset_ids: [lola_ldem_128]
+    has_dem_clones: false
+    source: >-
+      Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., and Mazarico, E. (2017),
+      Coordinates of anthropogenic features on the Moon, Icarus 283, 92-103, doi:10.1016/j.icarus.2016.05.011:
+      descent stage of Lunar Module "Eagle", 0.67416 N, 23.47314 E, uncertainty 0.3 m, as listed in the LROC PDS
+      archive (LRO-L-LROC-5-RDR-V1.0, EXTRAS/SHAPEFILE/ANTHROPOGENIC_OBJECTS) and on NASA NSSDCA's Apollo
+      Landing Site Coordinates page (planetocentric mean Earth/polar axis frame, DE421 ephemeris). Site name and
+      landing date: NSSDCA, https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo11info.html.
+
+  - id: apollo-12
+    name: Apollo 12 landing site (Lunar Module Intrepid descent stage)
+    short_name: Apollo 12
+    subtitle: Oceanus Procellarum · 19 November 1969
+    category: apollo
+    location: {lat: -3.0128, lon: -23.4219}
+    description: >-
+      Where Apollo 12's lunar module Intrepid landed on 19 November 1969 (UT), in Oceanus Procellarum, the Ocean of Storms, near the Moon's equator. The point is the lunar
+      module's descent stage, which is still on the surface, as located in Lunar Reconnaissance Orbiter
+      camera images (Wagner et al. 2017), to within 2.2 m.
+    dataset_ids: [lola_ldem_128]
+    has_dem_clones: false
+    source: >-
+      Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., and Mazarico, E. (2017),
+      Coordinates of anthropogenic features on the Moon, Icarus 283, 92-103, doi:10.1016/j.icarus.2016.05.011:
+      descent stage of Lunar Module "Intrepid", 3.0128 S, 23.4219 W, uncertainty 2.2 m, as listed in the LROC PDS
+      archive (LRO-L-LROC-5-RDR-V1.0, EXTRAS/SHAPEFILE/ANTHROPOGENIC_OBJECTS) and on NASA NSSDCA's Apollo
+      Landing Site Coordinates page (planetocentric mean Earth/polar axis frame, DE421 ephemeris). Site name and
+      landing date: NSSDCA, https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo12info.html.
+
+  - id: apollo-14
+    name: Apollo 14 landing site (Lunar Module Antares descent stage)
+    short_name: Apollo 14
+    subtitle: Fra Mauro · 5 February 1971
+    category: apollo
+    location: {lat: -3.64589, lon: -17.47194}
+    description: >-
+      Where Apollo 14's lunar module Antares landed on 5 February 1971 (UT), in the Fra Mauro region, near the Moon's equator. The point is the lunar
+      module's descent stage, which is still on the surface, as located in Lunar Reconnaissance Orbiter
+      camera images (Wagner et al. 2017), to within 0.4 m.
+    dataset_ids: [lola_ldem_128]
+    has_dem_clones: false
+    source: >-
+      Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., and Mazarico, E. (2017),
+      Coordinates of anthropogenic features on the Moon, Icarus 283, 92-103, doi:10.1016/j.icarus.2016.05.011:
+      descent stage of Lunar Module "Antares", 3.64589 S, 17.47194 W, uncertainty 0.4 m, as listed in the LROC PDS
+      archive (LRO-L-LROC-5-RDR-V1.0, EXTRAS/SHAPEFILE/ANTHROPOGENIC_OBJECTS) and on NASA NSSDCA's Apollo
+      Landing Site Coordinates page (planetocentric mean Earth/polar axis frame, DE421 ephemeris). Site name and
+      landing date: NSSDCA, https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo14info.html.
+
+  - id: apollo-15
+    name: Apollo 15 landing site (Lunar Module Falcon descent stage)
+    short_name: Apollo 15
+    subtitle: Hadley Rille / Apennines · 30 July 1971
+    category: apollo
+    location: {lat: 26.13239, lon: 3.6333}
+    description: >-
+      Where Apollo 15's lunar module Falcon landed on 30 July 1971 (UT), in the Hadley Rille and Apennines region. The point is the lunar
+      module's descent stage, which is still on the surface, as located in Lunar Reconnaissance Orbiter
+      camera images (Wagner et al. 2017), to within 1.0 m.
+    dataset_ids: [lola_ldem_128]
+    has_dem_clones: false
+    source: >-
+      Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., and Mazarico, E. (2017),
+      Coordinates of anthropogenic features on the Moon, Icarus 283, 92-103, doi:10.1016/j.icarus.2016.05.011:
+      descent stage of Lunar Module "Falcon", 26.13239 N, 3.63330 E, uncertainty 1.0 m, as listed in the LROC PDS
+      archive (LRO-L-LROC-5-RDR-V1.0, EXTRAS/SHAPEFILE/ANTHROPOGENIC_OBJECTS) and on NASA NSSDCA's Apollo
+      Landing Site Coordinates page (planetocentric mean Earth/polar axis frame, DE421 ephemeris). Site name and
+      landing date: NSSDCA, https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo15info.html.
+
+  - id: apollo-16
+    name: Apollo 16 landing site (Lunar Module Orion descent stage)
+    short_name: Apollo 16
+    subtitle: Descartes · 21 April 1972
+    category: apollo
+    location: {lat: -8.9734, lon: 15.5011}
+    description: >-
+      Where Apollo 16's lunar module Orion landed on 21 April 1972 (UT), in the Descartes region, near the Moon's equator. The point is the lunar
+      module's descent stage, which is still on the surface, as located in Lunar Reconnaissance Orbiter
+      camera images (Wagner et al. 2017), to within 3.0 m.
+    dataset_ids: [lola_ldem_128]
+    has_dem_clones: false
+    source: >-
+      Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., and Mazarico, E. (2017),
+      Coordinates of anthropogenic features on the Moon, Icarus 283, 92-103, doi:10.1016/j.icarus.2016.05.011:
+      descent stage of Lunar Module "Orion", 8.9734 S, 15.5011 E, uncertainty 3.0 m, as listed in the LROC PDS
+      archive (LRO-L-LROC-5-RDR-V1.0, EXTRAS/SHAPEFILE/ANTHROPOGENIC_OBJECTS) and on NASA NSSDCA's Apollo
+      Landing Site Coordinates page (planetocentric mean Earth/polar axis frame, DE421 ephemeris). Site name and
+      landing date: NSSDCA, https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo16info.html.
+
+  - id: apollo-17
+    name: Apollo 17 landing site (Lunar Module Challenger descent stage)
+    short_name: Apollo 17
+    subtitle: Taurus-Littrow · 11 December 1972
+    category: apollo
+    location: {lat: 20.1911, lon: 30.7723}
+    description: >-
+      Where Apollo 17's lunar module Challenger landed on 11 December 1972 (UT), in the Taurus-Littrow region. The point is the lunar
+      module's descent stage, which is still on the surface, as located in Lunar Reconnaissance Orbiter
+      camera images (Wagner et al. 2017), to within 3.5 m.
+    dataset_ids: [lola_ldem_128]
+    has_dem_clones: false
+    source: >-
+      Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., and Mazarico, E. (2017),
+      Coordinates of anthropogenic features on the Moon, Icarus 283, 92-103, doi:10.1016/j.icarus.2016.05.011:
+      descent stage of Lunar Module "Challenger", 20.1911 N, 30.7723 E, uncertainty 3.5 m, as listed in the LROC PDS
+      archive (LRO-L-LROC-5-RDR-V1.0, EXTRAS/SHAPEFILE/ANTHROPOGENIC_OBJECTS) and on NASA NSSDCA's Apollo
+      Landing Site Coordinates page (planetocentric mean Earth/polar axis frame, DE421 ephemeris). Site name and
+      landing date: NSSDCA, https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo17info.html.
+
+  # Artemis III candidate regions (plan 4.3; Kaitlin, 2026-11-16): NASA's nine regions of 28 October 2024
+  # (release 24-136), in the release's order. Point rule (Kaitlin): the centre of the region's 1 km grid box in
+  # McClernan (2024), doi:10.5066/P1MEQ6UK (ScienceBase item 671a6fa8d34efed5620f89f8), read from each zip's
+  # <stem>_PolarLGRS_ACC_1km_S_Grid.shp header (= the dbf ULX/LRX/ULY/LRY extent; full rectangles of 1 km cells).
+  # The grid's .prj: stereographic, latitude of origin -90, central meridian 0, scale factor 0.994, false
+  # easting/northing 500 km, 1737.4 km sphere; so engine PS metres = (LPS - 500 km) / 0.994. The inverse is
+  # checked against the bounds published in each region's 1 km XML (tests/engine/test_sites_artemis.py).
+  # VERIFY: the frame of the USGS grids (not stated; LROC QuickMap regions, mean Earth assumed). No `point`:
+  # these are not product 78 tile sites. Wording approved by Kaitlin 2026-11-16 (short names end in " region"
+  # to stay distinct from the curated sites). docs/methodology.md section 1.4.3.
+  - id: artemis3-peak-near-cabeus-b
+    name: Peak near Cabeus B (Artemis III candidate region, NASA 2024)
+    short_name: Peak near Cabeus B region
+    subtitle: Artemis III candidate region · NASA, Oct 2024
+    category: artemis_iii
+    location: {lat: -83.651364, lon: -68.726263}
+    description: >-
+      One of nine regions near the Moon's south pole that NASA named on 28 October 2024 as candidate landing
+      regions for Artemis III, each containing several potential landing sites. In February 2026 NASA made
+      Artemis III a crewed test flight in Earth orbit in 2027, with the first landing planned for Artemis IV
+      in 2028; NASA's Artemis IV page (updated March 2026) still shows these nine regions. NASA does not give
+      a centre for each region. The point used here is the centre of the 1 km navigation grid the U.S.
+      Geological Survey made for the region (McClernan 2024), about 21 by 21 km; the centre is this project's
+      calculation from the USGS grid and is about 193 km from the pole. It is a geometric centre, not a
+      landing site.
+    dataset_ids: [pgda_90_south_pole_dems]
+    has_dem_clones: false
+    source: >-
+      Region: NASA (2024), NASA Provides Update on Artemis III Moon Landing Regions, release 24-136, 28
+      October 2024,
+      https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/. Point:
+      centre of the region's 1 km grid in McClernan, M. T. (2024), Down Selected Artemis III Candidate Landing
+      Site Navigational Grids, U.S. Geological Survey data release, doi:10.5066/P1MEQ6UK
+      (Peak_Near_Cabeus_B.zip, Peak_Near_Cabeus_B_PolarLGRS_ACC_1km_S_Grid: lunar polar stereographic easting
+      311-332 km, northing 559-580 km; false easting and northing 500 km, scale factor 0.994, 1737.4 km
+      sphere). The centre, 83.651364 S, 68.726263 W, is this project's calculation (the release does not state
+      the frame; mean Earth assumed, not yet checked). Mission change: NASA release 26-022, 27 February 2026,
+      https://www.nasa.gov/news-release/nasa-adds-mission-to-artemis-lunar-program-updates-architecture/; NASA
+      Artemis IV page, https://www.nasa.gov/mission/artemis-iv/ (updated 16 March 2026).
+
+  - id: artemis3-haworth
+    name: Haworth (Artemis III candidate region, NASA 2024)
+    short_name: Haworth region
+    subtitle: Artemis III candidate region · NASA, Oct 2024
+    category: artemis_iii
+    location: {lat: -86.766106, lon: -22.619865}
+    description: >-
+      One of nine regions near the Moon's south pole that NASA named on 28 October 2024 as candidate landing
+      regions for Artemis III, each containing several potential landing sites. In February 2026 NASA made
+      Artemis III a crewed test flight in Earth orbit in 2027, with the first landing planned for Artemis IV
+      in 2028; NASA's Artemis IV page (updated March 2026) still shows these nine regions. NASA does not give
+      a centre for each region. The point used here is the centre of the 1 km navigation grid the U.S.
+      Geological Survey made for the region (McClernan 2024), about 31 by 30 km; the centre is this project's
+      calculation from the USGS grid and is about 98 km from the pole. It is a geometric centre, not a landing
+      site.
+    dataset_ids: [pgda_90_south_pole_dems]
+    has_dem_clones: false
+    source: >-
+      Region: NASA (2024), NASA Provides Update on Artemis III Moon Landing Regions, release 24-136, 28
+      October 2024,
+      https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/. Point:
+      centre of the region's 1 km grid in McClernan, M. T. (2024), Down Selected Artemis III Candidate Landing
+      Site Navigational Grids, U.S. Geological Survey data release, doi:10.5066/P1MEQ6UK (Haworth.zip,
+      Haworth_PolarLGRS_ACC_1km_S_Grid: lunar polar stereographic easting 447-478 km, northing 575-605 km;
+      false easting and northing 500 km, scale factor 0.994, 1737.4 km sphere). The centre, 86.766106 S,
+      22.619865 W, is this project's calculation (the release does not state the frame; mean Earth assumed,
+      not yet checked). Mission change: NASA release 26-022, 27 February 2026,
+      https://www.nasa.gov/news-release/nasa-adds-mission-to-artemis-lunar-program-updates-architecture/; NASA
+      Artemis IV page, https://www.nasa.gov/mission/artemis-iv/ (updated 16 March 2026).
+
+  - id: artemis3-malapert-massif
+    name: Malapert Massif (Artemis III candidate region, NASA 2024)
+    short_name: Malapert Massif region
+    subtitle: Artemis III candidate region · NASA, Oct 2024
+    category: artemis_iii
+    location: {lat: -85.987196, lon: -0.236758}
+    description: >-
+      One of nine regions near the Moon's south pole that NASA named on 28 October 2024 as candidate landing
+      regions for Artemis III, each containing several potential landing sites. In February 2026 NASA made
+      Artemis III a crewed test flight in Earth orbit in 2027, with the first landing planned for Artemis IV
+      in 2028; NASA's Artemis IV page (updated March 2026) still shows these nine regions. NASA does not give
+      a centre for each region. The point used here is the centre of the 1 km navigation grid the U.S.
+      Geological Survey made for the region (McClernan 2024), about 21 by 22 km; the centre is this project's
+      calculation from the USGS grid and is about 122 km from the pole. It is a geometric centre, not a
+      landing site. The point is 4.4 km from the Malapert Massif site.
+    dataset_ids: [pgda_78_site_dems, pgda_90_south_pole_dems]
+    has_dem_clones: false
+    source: >-
+      Region: NASA (2024), NASA Provides Update on Artemis III Moon Landing Regions, release 24-136, 28
+      October 2024,
+      https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/. Point:
+      centre of the region's 1 km grid in McClernan, M. T. (2024), Down Selected Artemis III Candidate Landing
+      Site Navigational Grids, U.S. Geological Survey data release, doi:10.5066/P1MEQ6UK (Malapert_Massif.zip,
+      Malapert_Massif_PolarLGRS_ACC_1km_S_Grid: lunar polar stereographic easting 489-510 km, northing 610-632
+      km; false easting and northing 500 km, scale factor 0.994, 1737.4 km sphere). The centre, 85.987196 S,
+      0.236758 W, is this project's calculation (the release does not state the frame; mean Earth assumed, not
+      yet checked). Mission change: NASA release 26-022, 27 February 2026,
+      https://www.nasa.gov/news-release/nasa-adds-mission-to-artemis-lunar-program-updates-architecture/; NASA
+      Artemis IV page, https://www.nasa.gov/mission/artemis-iv/ (updated 16 March 2026).
+
+  - id: artemis3-mons-mouton-plateau
+    name: Mons Mouton Plateau (Artemis III candidate region, NASA 2024)
+    short_name: Mons Mouton Plateau region
+    subtitle: Artemis III candidate region · NASA, Oct 2024
+    category: artemis_iii
+    location: {lat: -84.337470, lon: 30.618605}
+    description: >-
+      One of nine regions near the Moon's south pole that NASA named on 28 October 2024 as candidate landing
+      regions for Artemis III, each containing several potential landing sites. In February 2026 NASA made
+      Artemis III a crewed test flight in Earth orbit in 2027, with the first landing planned for Artemis IV
+      in 2028; NASA's Artemis IV page (updated March 2026) still shows these nine regions. NASA does not give
+      a centre for each region. The point used here is the centre of the 1 km navigation grid the U.S.
+      Geological Survey made for the region (McClernan 2024), about 78 by 58 km; the centre is this project's
+      calculation from the USGS grid and is about 172 km from the pole. It is a geometric centre, not a
+      landing site. This region's grid is much larger than the others, so its centre stands for the region
+      only loosely.
+    dataset_ids: [pgda_90_south_pole_dems]
+    has_dem_clones: false
+    source: >-
+      Region: NASA (2024), NASA Provides Update on Artemis III Moon Landing Regions, release 24-136, 28
+      October 2024,
+      https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/. Point:
+      centre of the region's 1 km grid in McClernan, M. T. (2024), Down Selected Artemis III Candidate Landing
+      Site Navigational Grids, U.S. Geological Survey data release, doi:10.5066/P1MEQ6UK
+      (Mons_Mouton_Plateau.zip, Mons_Mouton_Plateau_PolarLGRS_ACC_1km_S_Grid: lunar polar stereographic
+      easting 548-626 km, northing 618-676 km; false easting and northing 500 km, scale factor 0.994, 1737.4
+      km sphere). The centre, 84.337470 S, 30.618605 E, is this project's calculation (the release does not
+      state the frame; mean Earth assumed, not yet checked). Mission change: NASA release 26-022, 27 February
+      2026,
+      https://www.nasa.gov/news-release/nasa-adds-mission-to-artemis-lunar-program-updates-architecture/; NASA
+      Artemis IV page, https://www.nasa.gov/mission/artemis-iv/ (updated 16 March 2026).
+
+  - id: artemis3-mons-mouton
+    name: Mons Mouton (Artemis III candidate region, NASA 2024)
+    short_name: Mons Mouton region
+    subtitle: Artemis III candidate region · NASA, Oct 2024
+    category: artemis_iii
+    location: {lat: -85.421795, lon: 31.675469}
+    description: >-
+      One of nine regions near the Moon's south pole that NASA named on 28 October 2024 as candidate landing
+      regions for Artemis III, each containing several potential landing sites. In February 2026 NASA made
+      Artemis III a crewed test flight in Earth orbit in 2027, with the first landing planned for Artemis IV
+      in 2028; NASA's Artemis IV page (updated March 2026) still shows these nine regions. NASA does not give
+      a centre for each region. The point used here is the centre of the 1 km navigation grid the U.S.
+      Geological Survey made for the region (McClernan 2024), about 17 by 17 km; the centre is this project's
+      calculation from the USGS grid and is about 139 km from the pole. It is a geometric centre, not a
+      landing site. Mons Mouton is the mountain sometimes known informally as Leibnitz Beta, named by the IAU
+      in 2022 after NASA mathematician Melba Roy Mouton. The point is 0.3 km from the Leibnitz Beta Plateau
+      site.
+    dataset_ids: [pgda_78_site_dems, pgda_90_south_pole_dems]
+    has_dem_clones: false
+    source: >-
+      Region: NASA (2024), NASA Provides Update on Artemis III Moon Landing Regions, release 24-136, 28
+      October 2024,
+      https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/. Point:
+      centre of the region's 1 km grid in McClernan, M. T. (2024), Down Selected Artemis III Candidate Landing
+      Site Navigational Grids, U.S. Geological Survey data release, doi:10.5066/P1MEQ6UK (Mons_Mouton.zip,
+      Mons_Mouton_PolarLGRS_ACC_1km_S_Grid: lunar polar stereographic easting 564-581 km, northing 609-626 km;
+      false easting and northing 500 km, scale factor 0.994, 1737.4 km sphere). The centre, 85.421795 S,
+      31.675469 E, is this project's calculation (the release does not state the frame; mean Earth assumed,
+      not yet checked). Mission change: NASA release 26-022, 27 February 2026,
+      https://www.nasa.gov/news-release/nasa-adds-mission-to-artemis-lunar-program-updates-architecture/; NASA
+      Artemis IV page, https://www.nasa.gov/mission/artemis-iv/ (updated 16 March 2026). Name: USGS Gazetteer
+      of Planetary Nomenclature, Mons Mouton, feature 16070 (adopted by the IAU 13 May 2022),
+      https://planetarynames.wr.usgs.gov/Feature/16070; informal name Leibnitz Beta: NASA SVS 5074 (15
+      February 2023), https://svs.gsfc.nasa.gov/5074.
+
+  - id: artemis3-nobile-rim-1
+    name: Nobile Rim 1 (Artemis III candidate region, NASA 2024)
+    short_name: Nobile Rim 1 region
+    subtitle: Artemis III candidate region · NASA, Oct 2024
+    category: artemis_iii
+    location: {lat: -85.433807, lon: 37.327588}
+    description: >-
+      One of nine regions near the Moon's south pole that NASA named on 28 October 2024 as candidate landing
+      regions for Artemis III, each containing several potential landing sites. In February 2026 NASA made
+      Artemis III a crewed test flight in Earth orbit in 2027, with the first landing planned for Artemis IV
+      in 2028; NASA's Artemis IV page (updated March 2026) still shows these nine regions. NASA does not give
+      a centre for each region. The point used here is the centre of the 1 km navigation grid the U.S.
+      Geological Survey made for the region (McClernan 2024), about 21 by 21 km; the centre is this project's
+      calculation from the USGS grid and is about 138 km from the pole. It is a geometric centre, not a
+      landing site. The point is 4.1 km from the Nobile Rim site.
+    dataset_ids: [pgda_78_site_dems, pgda_90_south_pole_dems]
+    has_dem_clones: false
+    source: >-
+      Region: NASA (2024), NASA Provides Update on Artemis III Moon Landing Regions, release 24-136, 28
+      October 2024,
+      https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/. Point:
+      centre of the region's 1 km grid in McClernan, M. T. (2024), Down Selected Artemis III Candidate Landing
+      Site Navigational Grids, U.S. Geological Survey data release, doi:10.5066/P1MEQ6UK (Nobile_Rim_1.zip,
+      Nobile_Rim_1_PolarLGRS_ACC_1km_S_Grid: lunar polar stereographic easting 573-594 km, northing 599-620
+      km; false easting and northing 500 km, scale factor 0.994, 1737.4 km sphere). The centre, 85.433807 S,
+      37.327588 E, is this project's calculation (the release does not state the frame; mean Earth assumed,
+      not yet checked). Mission change: NASA release 26-022, 27 February 2026,
+      https://www.nasa.gov/news-release/nasa-adds-mission-to-artemis-lunar-program-updates-architecture/; NASA
+      Artemis IV page, https://www.nasa.gov/mission/artemis-iv/ (updated 16 March 2026).
+
+  - id: artemis3-nobile-rim-2
+    name: Nobile Rim 2 (Artemis III candidate region, NASA 2024)
+    short_name: Nobile Rim 2 region
+    subtitle: Artemis III candidate region · NASA, Oct 2024
+    category: artemis_iii
+    location: {lat: -83.954459, lon: 58.793809}
+    description: >-
+      One of nine regions near the Moon's south pole that NASA named on 28 October 2024 as candidate landing
+      regions for Artemis III, each containing several potential landing sites. In February 2026 NASA made
+      Artemis III a crewed test flight in Earth orbit in 2027, with the first landing planned for Artemis IV
+      in 2028; NASA's Artemis IV page (updated March 2026) still shows these nine regions. NASA does not give
+      a centre for each region. The point used here is the centre of the 1 km navigation grid the U.S.
+      Geological Survey made for the region (McClernan 2024), about 20 by 21 km; the centre is this project's
+      calculation from the USGS grid and is about 183 km from the pole. It is a geometric centre, not a
+      landing site.
+    dataset_ids: [pgda_90_south_pole_dems]
+    has_dem_clones: false
+    source: >-
+      Region: NASA (2024), NASA Provides Update on Artemis III Moon Landing Regions, release 24-136, 28
+      October 2024,
+      https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/. Point:
+      centre of the region's 1 km grid in McClernan, M. T. (2024), Down Selected Artemis III Candidate Landing
+      Site Navigational Grids, U.S. Geological Survey data release, doi:10.5066/P1MEQ6UK (Nobile_Rim_2.zip,
+      Nobile_Rim_2_PolarLGRS_ACC_1km_S_Grid: lunar polar stereographic easting 646-666 km, northing 584-605
+      km; false easting and northing 500 km, scale factor 0.994, 1737.4 km sphere). The centre, 83.954459 S,
+      58.793809 E, is this project's calculation (the release does not state the frame; mean Earth assumed,
+      not yet checked). Mission change: NASA release 26-022, 27 February 2026,
+      https://www.nasa.gov/news-release/nasa-adds-mission-to-artemis-lunar-program-updates-architecture/; NASA
+      Artemis IV page, https://www.nasa.gov/mission/artemis-iv/ (updated 16 March 2026).
+
+  - id: artemis3-de-gerlache-rim-2
+    name: de Gerlache Rim 2 (Artemis III candidate region, NASA 2024)
+    short_name: de Gerlache Rim 2 region
+    subtitle: Artemis III candidate region · NASA, Oct 2024
+    category: artemis_iii
+    location: {lat: -88.226338, lon: -65.112588}
+    description: >-
+      One of nine regions near the Moon's south pole that NASA named on 28 October 2024 as candidate landing
+      regions for Artemis III, each containing several potential landing sites. In February 2026 NASA made
+      Artemis III a crewed test flight in Earth orbit in 2027, with the first landing planned for Artemis IV
+      in 2028; NASA's Artemis IV page (updated March 2026) still shows these nine regions. NASA does not give
+      a centre for each region. The point used here is the centre of the 1 km navigation grid the U.S.
+      Geological Survey made for the region (McClernan 2024), about 21 by 21 km; the centre is this project's
+      calculation from the USGS grid and is about 54 km from the pole. It is a geometric centre, not a landing
+      site.
+    dataset_ids: [pgda_90_south_pole_dems]
+    has_dem_clones: false
+    source: >-
+      Region: NASA (2024), NASA Provides Update on Artemis III Moon Landing Regions, release 24-136, 28
+      October 2024,
+      https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/. Point:
+      centre of the region's 1 km grid in McClernan, M. T. (2024), Down Selected Artemis III Candidate Landing
+      Site Navigational Grids, U.S. Geological Survey data release, doi:10.5066/P1MEQ6UK
+      (de_Gerlache_Rim_2.zip, de_Gerlache_Rim_2_PolarLGRS_ACC_1km_S_Grid: lunar polar stereographic easting
+      441-462 km, northing 512-533 km; false easting and northing 500 km, scale factor 0.994, 1737.4 km
+      sphere). The centre, 88.226338 S, 65.112588 W, is this project's calculation (the release does not state
+      the frame; mean Earth assumed, not yet checked). Mission change: NASA release 26-022, 27 February 2026,
+      https://www.nasa.gov/news-release/nasa-adds-mission-to-artemis-lunar-program-updates-architecture/; NASA
+      Artemis IV page, https://www.nasa.gov/mission/artemis-iv/ (updated 16 March 2026).
+
+  - id: artemis3-slater-plain
+    name: Slater Plain (Artemis III candidate region, NASA 2024)
+    short_name: Slater Plain region
+    subtitle: Artemis III candidate region · NASA, Oct 2024
+    category: artemis_iii
+    location: {lat: -87.169725, lon: 125.459618}
+    description: >-
+      One of nine regions near the Moon's south pole that NASA named on 28 October 2024 as candidate landing
+      regions for Artemis III, each containing several potential landing sites. In February 2026 NASA made
+      Artemis III a crewed test flight in Earth orbit in 2027, with the first landing planned for Artemis IV
+      in 2028; NASA's Artemis IV page (updated March 2026) still shows these nine regions. NASA does not give
+      a centre for each region. The point used here is the centre of the 1 km navigation grid the U.S.
+      Geological Survey made for the region (McClernan 2024), about 21 by 21 km; the centre is this project's
+      calculation from the USGS grid and is about 86 km from the pole. It is a geometric centre, not a landing
+      site.
+    dataset_ids: [pgda_90_south_pole_dems]
+    has_dem_clones: false
+    source: >-
+      Region: NASA (2024), NASA Provides Update on Artemis III Moon Landing Regions, release 24-136, 28
+      October 2024,
+      https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/. Point:
+      centre of the region's 1 km grid in McClernan, M. T. (2024), Down Selected Artemis III Candidate Landing
+      Site Navigational Grids, U.S. Geological Survey data release, doi:10.5066/P1MEQ6UK (Slater_Plain.zip,
+      Slater_Plain_PolarLGRS_ACC_1km_S_Grid: lunar polar stereographic easting 559-580 km, northing 440-461
+      km; false easting and northing 500 km, scale factor 0.994, 1737.4 km sphere). The centre, 87.169725 S,
+      125.459618 E, is this project's calculation (the release does not state the frame; mean Earth assumed,
+      not yet checked). Mission change: NASA release 26-022, 27 February 2026,
+      https://www.nasa.gov/news-release/nasa-adds-mission-to-artemis-lunar-program-updates-architecture/; NASA
+      Artemis IV page, https://www.nasa.gov/mission/artemis-iv/ (updated 16 March 2026).

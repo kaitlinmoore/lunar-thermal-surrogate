@@ -3,8 +3,8 @@ name = "lunar-thermal-surrogate"
 version = "0.1.0"
 description = "1D lunar regolith heat solver driven by terrain-shadowed illumination, with a PhysicsNeMo FNO surrogate."
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "MIT AND Apache-2.0"
+license-files = ["LICENSE", "src/lss/LICENSE"]
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "numba>=0.68.1",
@@ -23,7 +23,9 @@ requires = ["uv_build>=0.13.8,<0.14"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-module-name = "lunar_thermal"
+# Two top-level modules: this project's own code, and the illumination engine copied unchanged
+# from Penumbra Luna (src/lss/VENDORED.md).
+module-name = ["lunar_thermal", "lss"]
 
 # PyTorch comes from PyTorch's own CUDA 13.0 wheel index. `explicit = true` means
 # only packages pinned to this index in [tool.uv.sources] are taken from it;
@@ -40,6 +42,7 @@ torch = { index = "pytorch-cu130" }
 testpaths = ["tests"]
 markers = [
     "gpu: needs a CUDA GPU (skipped when CUDA is unavailable)",
+    "data: needs LSS_DATA_DIR data; skipped when absent",
 ]
 
 [dependency-groups]
