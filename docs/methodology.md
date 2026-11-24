@@ -237,7 +237,106 @@ Sources, all from Hayne et al. (2017), doi:10.1002/2017JE005387:
 
 **Limits of the check.** Diviner values are for flat, equatorial to mid-latitude regolith; the figure points are approximate; the Diviner Figure A2 data were themselves the data Hayne et al. fitted Ks and Kd to, so a good match is expected rather than independent. Nothing here tests polar or shadowed conditions, where this 1D direct-sunlight model omits scattered light and terrain re-radiation (polar night minimums are not predictions).
 
-## Illumination forcing
+## Forcing
+
+Code: `src/lunar_thermal/forcing.py`; entry point `compute_forcing`. Written with AI assistance (Claude Code). Where the Sun is, and how much of its disc clears the terrain, come from the vendored Penumbra Luna engine (`src/lss`, unchanged). This module adds the facet geometry, the albedo law, the distance factor and the sampling, and checks the engine's output against them.
+
+**Contract.** `compute_forcing(lat, lon, height_m, window_start, *, a0, n_samples=709, period_s=29.530589 d, slope_deg=None, aspect_deg=None, horizon_params=None, layers=LAYERS, albedo_a=0.06, albedo_b=0.25, solar_constant=1361.0) -> Forcing`. `Forcing` holds:
+
+- the sample times and step;
+- the absorbed flux;
+- the Sun's elevation and azimuth;
+- the visible fraction, cos i, the albedo and the Sun distance;
+- the facet (slope, aspect, layer, baseline);
+- the terrain stack (each layer's label, file, resolution, role and ray-distance range) and fidelity label;
+- the horizon's missing and total ray samples;
+- whether the horizon came from the cache, and timings.
+
+Pass `absorbed_flux` and `dt_s` straight to `solve_periodic`. There is no default observer height (open decision).
+
+**Equation.** F(t) = S (1 AU / r)² × f × max(cos i, 0) × (1 − A(i)).
+
+| Term | Definition | Source |
+|---|---|---|
+| S | 1361 W m⁻² at 1 AU | Hayne et al. Table A1 |
+| r | Sun's distance from the observer, from SPICE (`lss.ephem.topocentric`, DE421, light-time and aberration corrected). It differs from the Sun–Moon centre distance by at most one lunar radius, 1.2×10⁻⁵ AU | engine ephemeris |
+| f | limb-darkened fraction of the solar disc above the real terrain horizon (`lss.series.compute_visibility`, Sun output) | engine |
+| i | angle between the Sun's direction (disc centre) and the local facet's normal: cos i = cos s sin e + sin s cos e cos(A − a), with e and A the Sun's elevation and azimuth and s and a the slope and aspect | this module |
+| A(i) | A0 + a (i / (π/4))³ + b (i / (π/2))⁸, a = 0.06, b = 0.25, at the local incidence on the slope (as heat1d does), with i clipped to 90° | Eq. A8, Table A1 |
+
+The horizon and the facet each shadow the ground, and both are applied. f is zero when hills hide the Sun. max(cos i, 0) is zero when the Sun is above the horizon but behind the tilted ground. Eq. A8 at i = 90° is A0 + 0.73, so `compute_forcing` refuses an A0 above 0.27, where 1 − A would go negative. The sampling range, 0.05–0.25, is inside that.
+
+**Conventions** (the engine's, `lss.ephem.core`; tested):
+
+- Latitude planetocentric, longitude east, degrees.
+- The local frame is east-north-up on the normal of the 1737.4 km reference sphere. The Sun's elevation is measured from that frame's horizontal plane, not from the sloped ground.
+- Azimuths, of the Sun and of the aspect, are clockwise from north, 0–360°.
+- Slope is the facet's angle from the horizontal. Aspect is the azimuth the facet faces: its downhill direction. At a southern-hemisphere point an equator-facing slope has aspect 0°.
+
+**Slope and aspect.** They come from the near-field layer that `resolve` picks for the point: the 80 m polar map south of about 80°S, the 240 m map to about 74°S (and in that map's corners), and `LDEM_128` elsewhere. The definition is the engine's slope at a point (`lss.terrain.slope`), which reproduces Barker et al. (2021)'s published slope maps: central differences across the pixel containing the point. The baseline is therefore two pixels each way: 160 m on the 80 m map, 480 m on the 240 m map, and 474 m north-south by 474 cos(lat) m east-west on `LDEM_128`. Polar stereographic ground steps include the map scale factor. The engine returns the slope only, not its direction. So this module repeats the same differences to get the gradient, rotates it from map axes into east-north, and takes the aspect from it. Every call checks that the slope from that gradient equals the engine's own `slope_deg` or `slope_deg_lonlat` on the same pixels, to 10⁻⁹. It reads only the 3×3 pixels it needs. On `LDEM_128` the east-west step shrinks as cos(lat), and points within about 0.015° of the north pole are refused. North of about 88°N the step is short enough (8 m at 88°N) that the map's 0.5 m height quantisation inflates the slope. Over 40 random longitudes, the median engine slope is 12.1° at 88°N and 13.8° at 89°N, against 7.6° and 5.6° with an east-west baseline matched to 474 m. From 60°N to 85°N the two agree within 0.4° in the median. This is raised as a decision. The south pole is on the 80 m map, so the south has no such problem. Why this definition: it is the engine's, so the facet matches Penumbra Luna's published slope statistics, and it is the finest the near-field layer resolves. The alternatives measured below change the flux materially at a polar point, so the choice is raised as a decision.
+
+**Distance.** The true distance at each sample, not 1 AU. The Sun–Moon distance spans about 0.981–1.019 AU over a year: Earth's 0.983–1.017 widened by the Moon's orbit (0.0026 AU). Against a fixed 1 AU that is −3.8% to +4.0% in flux.
+
+**Sampling.** n uniform samples per period, t_k = k T / n, k = 0 … n − 1, with no duplicated endpoint. The default is T = 29.530589 d (mean synodic month) and n = 709, giving dt = 3598.65 s. That is the step closest to an hour that divides the period evenly; 708 would give 3603.7 s, over the solver's hourly limit. The engine's internal grid is set to dt, so it evaluates the Sun at exactly those instants plus the endpoint, which is dropped. Each sample is an instantaneous value, not an average over the step.
+
+**Horizon reuse and gaps.** `compute_visibility` reads horizons through the engine's cache (`LSS_DATA_DIR/cache/horizon/`, keyed on point, height, settings and terrain stack). A point's first window computes its horizon, and later windows load it. The missing-sample count is always returned. A nonzero count also raises `HorizonGapWarning`, so a gap is never silent. With the default layers no point is refused; with a custom layer list the engine raises `HorizonUnavailable` with its reason. Windows outside the kernels' coverage (1900 to 2051-01-01 TDB) raise `OutOfCoverage` before any computation.
+
+**Tests** (`tests/test_forcing.py`; `data` tests need `LSS_DATA_DIR`). Every test location is checked to be at least 50 km from each of the 23 sites; no test reads a site's terrain.
+
+| Test | Tolerance | Data |
+|---|---|---|
+| Eq. A8 at 0, 45, 60 and 90° against closed forms and `tests/synthetic_forcing.py` | 10⁻¹² | no |
+| Flat ground: cos i = sin e; aspect and azimuth conventions (equator-facing beats pole-facing; east-facing beats west-facing in the morning; normal incidence) | 10⁻¹² | no |
+| Flux exactly 0 where f = 0 or cos i ≤ 0, otherwise the formula | 10⁻¹² W m⁻² | no |
+| Sample times: 709, uniform, no endpoint, dt ≤ 3600 s | 10⁻⁶ s | no |
+| Slope and aspect recovered from tilted planes on synthetic polar stereographic (both poles, five longitudes) and latitude/longitude windows; the engine's slope equal to this module's | 0.01°; 10⁻⁹ | no |
+| Sun distance over 2027 within 0.980–1.020 AU and spanning below 0.984 and above 1.016 | as stated | yes |
+| Flat ground, zero horizon, 5°N and 45°S: flux against an independent evaluation from raw SPICE (elevation from the dot product with the sphere normal) and `synthetic_forcing.albedo`, wherever the whole disc is up; 0 wherever it is down | 10⁻⁶ W m⁻² | yes |
+| 45°S, zero horizon: a 20° equator-facing slope gets more flux at the highest Sun and over the period than a pole-facing one | exact inequality | yes |
+| Horizon gaps warn and report the count; windows outside the kernels raise | exact | yes |
+| Demonstration points (85°S 90°E, 5°N 60°W): f, Sun azimuth and elevation equal `compute_visibility`'s Sun output on the same grid; distance equals R☉ / sin(apparent radius) from the engine's series; flux zero exactly where hidden or behind the facet; output meets the solver contract and `solve_periodic` converges; slope equal to the engine's `slope_stats` / `global_slope_stats` at the point | exact; 10⁻⁹ relative; exact; 10⁻⁹° | yes |
+
+The zero-horizon tests replace the engine's horizon cache lookup inside the test (pytest `monkeypatch`), so the whole engine path runs on a horizon of 0°.
+
+**Measurements** (exploratory; start 2027-01-01T00:00Z, one synodic month, A0 = 0.12, solver defaults with H = 0.068 m; Intel Core Ultra 9 275HX).
+
+*Observer height, 0.1 m against 1 m* (the dataset default is open):
+
+| Point | Mean flux, W m⁻² | Largest flux difference | Horizon difference, mean / max | Surface T, mean | Surface T difference, rms / max |
+|---|---|---|---|---|---|
+| 85°S 90°E (80 m near field) | 13.093 / 13.097 (−0.03%) | 0.48 W m⁻² | +0.001° / +0.004° | 97.77 / 97.79 K | 0.05 / 0.71 K |
+| 5°N 60°W (`LDEM_128`) | 361.366 / 361.367 (−0.0003%) | 0.80 W m⁻² | +0.17° / +0.44° | 211.18 / 211.19 K | 0.06 / 1.46 K |
+
+The two heights differ only around sunrise and sunset, by a sample or so of illumination, and in the night minimum by under 0.01 K. At the equatorial point the lower viewpoint raises the horizon by 0.17° on average. That is the near-field map's own tilt seen from closer to the ground, which the facet term already accounts for.
+
+*Time per window* (one process, numba kernels already loaded): 3.5–4.2 s with the horizon computed (almost all of it the horizon), 0.11–0.36 s with it cached (visibility 0.08–0.26 s, distance 0.02–0.08 s, facet under 0.04 s), at either point. A point with four windows costs about 4 s plus 4 × 0.25 s. The horizon kernel is numba-parallel over every core.
+
+*Hourly point samples against 60 s samples* (same point and window, each run to steady state; the 60 s surface temperature interpolated to the hourly times): mean flux differs by −6×10⁻⁵ (polar) and −2×10⁻⁵ (equatorial), relative. Surface temperature differs by 0.16 K rms (95th percentile 0.07 K, largest 2.1 K at a brief grazing sunrise) at the polar point, and by 0.03 K rms (95th percentile 0.004 K) at the equatorial point. The equatorial largest, 0.73 K, is at the period's wrap (next item); elsewhere it is at most 0.011 K.
+
+*The period's wrap.* The forcing repeats one mean synodic month. A point's actual noon-to-noon interval differs from it: by −1.85 to +1.95 h (standard deviation 1.3 h) at 5°N 60°W over 2025–2045. So where the series wraps around, the Sun jumps by up to about 1.9 h of hour angle. In the equatorial sample window the wrap falls in the afternoon, and the flux steps by 20 W m⁻² where the hourly change is 7 W m⁻². If the wrap falls at sunrise or sunset, the periodic day is up to 1.9 h longer or shorter than the real one. At the poles the Sun's declination also drifts over the month (seasons; open decision 2 of the planning package).
+
+*Slope baseline.* The engine's 2-pixel central differences against a least-squares plane over 3×3, 5×5 and 9×9 pixels:
+
+| Point | Definition | Slope, aspect | Mean flux change | Surface T change, mean / max |
+|---|---|---|---|---|
+| 85°S 90°E (80 m) | central differences (used) | 1.97°, 289.0° | | |
+| | plane 3×3 (240 m) | 2.08°, 295.8° | +6.1% | +1.1 / 2.8 K |
+| | plane 5×5 (400 m) | 1.83°, 291.0° | +0.6% | +0.2 / 3.3 K |
+| | plane 9×9 (720 m) | 0.90°, 295.6° | −3.4% | −0.3 / 18.3 K |
+| 5°N 60°W (237 m) | central differences (used) | 0.67°, 275.2° | | |
+| | plane 3×3 | 0.49°, 286.9° | −0.02% | −0.01 / 3.0 K |
+| | plane 5×5 | 0.26°, 306.8° | −0.02% | −0.01 / 6.9 K |
+| | plane 9×9 | 0.32°, 342.3° | −0.05% | −0.03 / 8.4 K |
+
+With the Sun a few degrees up, as at the poles, a 1–2° change of slope or aspect moves cos i by tens of percent. The facet scale therefore matters at polar points. At the equator it matters only near sunrise and sunset.
+
+**Limits.**
+
+- Direct sunlight only: no light scattered from, or heat radiated by, surrounding terrain (see Limitations). Polar night minimums are not predictions.
+- The facet is one plane over a two-pixel baseline (160–480 m at training points); roughness below that scale is not resolved. North of about 88°N the global map's slope is inflated (above). At the polar test sites the 5 m near field would give a 10 m baseline, a train/test difference in facet scale as well as in horizon sharpness.
+- One mean synodic month is treated as periodic (the wrap above).
+- Each sample is an instant, so illumination events shorter than an hour can be missed or over-weighted.
+- Sun elevation is for the disc centre; partial discs enter through f, while cos i uses the centre direction.
 
 ## Training data and sampling
 
