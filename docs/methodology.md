@@ -8,7 +8,7 @@ Stubs. Each section is filled in by the work that builds it.
 
 The regolith is a one-dimensional column with depth-dependent density and temperature-dependent conductivity and heat capacity, following Hayne et al. (2017), *Global regolith thermophysical properties of the Moon from the Diviner Lunar Radiometer Experiment*, JGR Planets 122, 2371–2400 (doi:10.1002/2017JE005387). Code: `src/lunar_thermal/properties.py`.
 
-Equation and table numbers below are those of the openly available arXiv preprint of the paper (arXiv:1711.00977), Appendix A. The published version was not accessible when this was written; if its numbering differs, these citations need updating.
+Equation, table, figure and section numbers below are those of the published article. Its appendix numbering (Eqs. A1–A36, Tables A1–A2) matches the openly available arXiv preprint (arXiv:1711.00977).
 
 | Property | Formula | Source |
 |---|---|---|
@@ -20,7 +20,7 @@ Equation and table numbers below are those of the openly available arXiv preprin
 
 | Parameter | Default | Source |
 |---|---|---|
-| H (scale height) | 0.06 m | Table A1, "avg. = 0.06 m" (see the note below) |
+| H (scale height) | 0.068 m | Section 4 and Figure 9: measured global (±60°) mean and mode. The standard model's 0.06 m (Table A1) is `RegolithParams.standard_model()`; see "Parameter choices" |
 | ρs, ρd | 1100, 1800 kg m⁻³ | Table A1 |
 | Ks, Kd | 7.4×10⁻⁴, 3.4×10⁻³ W m⁻¹ K⁻¹ | Table A1 |
 | χ | 2.7 | Table A1 |
@@ -28,10 +28,14 @@ Equation and table numbers below are those of the openly available arXiv preprin
 | Emissivity ε | 0.95 | Table A1 |
 | Geothermal flux Q | 0.018 W m⁻² | Table A1 (Langseth et al. 1976) |
 
-Where the paper gives more than one value (open questions, not settled here):
+### Parameter choices
 
-- **H.** Table A1 gives an average of 0.06 m, and the paper's standard-model figures (A2, A3) use 0.06 m. Section 4 and Figure 9 give a global (±60°) mean and mode of 0.068 m, and the abstract says "~7 cm". The default is 0.06 m. For the equatorial sanity case, 0.068 m lowers the night minimum by 0.8 K and leaves the noon maximum unchanged.
-- **Kd.** The caption of Figure 5 lists Kd = 4.3×10⁻³ W m⁻¹ K⁻¹; Table A1 and the text give 3.4×10⁻³. The default follows Table A1; the caption looks like a transposition.
+The paper gives two values for H and two for Kd.
+
+- **H, default 0.068 m.** Section 4 reports that the H values fitted to Diviner have a global (latitude ±60°) average and mode of 6.8 cm, with a standard deviation of about 0.7 cm. Figure 9 gives the mean as 0.068 m, and the abstract says "~7 cm". Table A1 instead lists "0 to > 0.2 m (avg. = 0.06 m)", and the paper's standard-model runs (Figures A2, A3) use 0.06 m. This project predicts temperatures at real sites, so the default is the measured mean. It is also the better fit to the paper's own Diviner night data. Against the nine equatorial Figure A2 points, it gives an RMSE of 0.21 K, against 0.69 K for 0.06 m (see "Diviner check"). The cost: equatorial nights are 0.8 K colder than at 0.06 m (pre-dawn 92.9 against 93.7 K), which moves them further from Table A2's 95 K minimum. The noon maximum doesn't change.
+- **The standard model is kept for paper comparisons.** `RegolithParams.standard_model()` is Table A1 throughout, which is the default with H = 0.06 m. Every comparison with the paper's model runs or with heat1d set up as the paper's standard case uses it, or states its own H. The default only matters where no H is given.
+- **H is unknown at the polar sites.** The 0.068 m mean comes from ±60°, and the paper's H map (Figure 7) spans ±70°. The 17 polar and Artemis sites lie beyond both, so there the default stands in for an unmeasured value.
+- **Kd = 3.4×10⁻³ W m⁻¹ K⁻¹.** Table A1 and the text give 3.4×10⁻³; the caption of Figure 5 lists 4.3×10⁻³. The default follows Table A1, and the caption is treated as a typo (a transposition of the digits).
 
 The heat-capacity fit is stated valid from below 90 K to above 400 K and turns negative below about 1.3 K; values below about 90 K (polar night) are extrapolation. `specific_enthalpy`, the exact integral of cp, is this project's addition. The solver steps it so that energy is conserved exactly while cp varies.
 
@@ -45,7 +49,7 @@ Code: `src/lunar_thermal/solver.py`; entry point `solve_periodic`. The numerical
 
 **Spatial discretization.** Finite volumes. Nodes sit at depths z₀ = 0 < z₁ < … < z_N; each owns the slab halfway to its neighbours (half slabs at both ends), with mass ρ(zᵢ)·wᵢ. The flux between nodes i and i+1 is ½(Kᵢ + Kᵢ₊₁)(Tᵢ₊₁ − Tᵢ)/Δzᵢ, which is second-order accurate and conserves energy by construction. The surface node's half slab carries the radiative balance, and the bottom node's half slab receives Q.
 
-**Grid.** The top layer is zs/m thick, where zs is the skin depth of the surface material at 250 K. Layers then grow by a factor (1 + 1/n) (Hayne et al. Eq. A33) until the column reaches b skin depths of the deep material. Skin depths are taken at 250 K, near the diffusivity minimum, so the top layer is conservatively thin. Using the deep material's skin depth for the bottom matters: it is 1.7 times larger than the surface one for the standard parameters. Defaults m = 20, n = 10, b = 10 give 39 nodes, a 2.0 mm top layer and a 0.73 m column for one lunation. The grid depends on the period, so a longer forcing automatically gets a deeper column.
+**Grid.** The top layer is zs/m thick, where zs is the skin depth of the surface material at 250 K. Layers then grow by a factor (1 + 1/n) (Hayne et al. Eq. A33) until the column reaches b skin depths of the deep material. Skin depths are taken at 250 K, near the diffusivity minimum, so the top layer is conservatively thin. Using the deep material's skin depth for the bottom matters: it is 1.7 times larger than the surface one for the Table A1 parameters. Defaults m = 20, n = 10, b = 10 give 39 nodes, a 2.0 mm top layer and a 0.73 m column for one lunation. The grid is the same at H = 0.06 and 0.068 m, since it depends only on the surface and deep material. The grid depends on the period, so a longer forcing automatically gets a deeper column.
 
 **Time stepping.** BDF2 on enthalpy: ρw(3h(Tⁿ⁺¹) − 4h(Tⁿ) + h(Tⁿ⁻¹))/(2Δt) = net heat into the slab at tⁿ⁺¹. The very first step of a run uses backward Euler. Each forcing interval is split into ⌈dt / max_step⌉ equal substeps (default max_step 1800 s). Each step is solved with Newton's method on the whole column: the Jacobian is tridiagonal and includes the T-derivatives of K, cp and εσT⁴. It converges to a largest update below 10⁻⁸ K, typically in 2–3 iterations. A Newton failure raises an error rather than returning a result.
 
@@ -56,31 +60,31 @@ Alternatives considered:
 - *Backward Euler.* L-stable but first order. BDF2 is also L-stable and second order, at the cost of one extra stored state.
 - *Linearising T⁴ once per step instead of iterating Newton.* Cheaper, but its error depends on the step, and the energy balance would close only approximately.
 
-**Spin-up.** The period repeats until two conditions hold. First, the largest change between cycles, over every node and sample time, is below the tolerance (default 0.01 K). Second, the projected remaining drift is below it too. Once fast transients die, the deep column relaxes by a nearly constant ratio r per cycle (about 0.951 per lunation at the equator). A small per-cycle change can therefore hide a large remaining drift, change·r/(1 − r), about 20 times the last change. With a per-cycle criterion alone, runs stopped 0.2–0.4 K short of steady state at depth. When r is stable over three successive estimates and at most 0.98, the solver extrapolates the end-of-cycle state by change·r/(1 − r) (vector Aitken extrapolation). For equatorial forcing this cuts spin-up from 140–190 cycles to 25–50. The ratio cap and the three-estimate stability check guard against a failure seen in testing, where a transient ratio near 1 caused an overshooting jump. An unconverged run returns `converged = False` with its residual and drift, and raises a `RuntimeWarning`.
+**Spin-up.** The period repeats until two conditions hold. First, the largest change between cycles, over every node and sample time, is below the tolerance (default 0.01 K). Second, the projected remaining drift is below it too. Once fast transients die, the deep column relaxes by a nearly constant ratio r per cycle: about 0.95 per lunation at the equator (0.950 at the default H = 0.068 m, 0.949 at 0.06 m). A small per-cycle change can therefore hide a large remaining drift, change·r/(1 − r), about 20 times the last change. With a per-cycle criterion alone, runs stopped 0.2–0.4 K short of steady state at depth (measured during development, H = 0.06 m). When r is stable over three successive estimates and at most 0.98, the solver extrapolates the end-of-cycle state by change·r/(1 − r) (vector Aitken extrapolation). For equatorial forcing at the default H = 0.068 m, this cuts spin-up from 141–185 cycles to 27–49, starting from the default estimate, 150 K or 300 K (138–180 to 25–49 at 0.06 m). The ratio cap and the three-estimate stability check guard against a failure seen in testing, where a transient ratio near 1 caused an overshooting jump. An unconverged run returns `converged = False` with its residual and drift, and raises a `RuntimeWarning`.
 
-**Tests** (`tests/test_solver.py`, `tests/test_energy.py`, `tests/test_properties.py`). Each test isolates one part of the solver. Tolerances are stated in each test.
+**Tests** (`tests/test_solver.py`, `tests/test_energy.py`, `tests/test_properties.py`). Each test isolates one part of the solver. Tolerances are stated in each test. "Measured" is at the default H = 0.068 m, on the synthetic forcing of `tests/synthetic_forcing.py` (29.530589 d lunation). Cases (a) and (b) use constant properties, so H doesn't enter. Measured values at H = 0.06 m, where they differ, are in brackets.
 
 | Test | Isolates | Tolerance | Measured |
 |---|---|---|---|
 | (a) Constant properties, fixed sinusoidal surface temperature, against T₀ + A e^(−z/d) sin(ωt − z/d) | interior conduction | 0.25 K (A = 100 K), depths d/4 to 3d | 0.125 K |
 | (b) No sunlight, constant properties: Tₛ = (Q/εσ)^¼, T = Tₛ + Qz/K | radiative surface and geothermal bottom | 10⁻³ K | 4×10⁻⁵ K |
 | (c) No sunlight, Hayne profile, Q = 0.5 W m⁻²: against RK4 integration of K(z,T) dT/dz = Q | depth- and T-dependent conductivity | 0.05 K | 0.007 K |
-| (d) Spin-up flags; converged result against a reference converged to 10⁻⁶ K | convergence bookkeeping and honesty | flags exact; 2× tolerance | 0.006 K |
+| (d) Spin-up flags; converged result against a reference converged to 10⁻⁶ K | convergence bookkeeping and honesty | flags exact; 2× tolerance | 0.008 K (0.006 K) |
 | (e) Halve grid spacing and time step | discretization error | 0.25 K max, 0.05 K rms | 0.15 K, 0.017 K |
-| Bottom at 15 instead of 10 skin depths | bottom boundary placement | 0.01 K | 0.0015 K |
-| Energy: mean absorbed + Q = mean emitted, from samples | global energy balance | 0.005 W m⁻² | 0.0009 W m⁻² |
-| Energy: stored heat returns to start | periodicity | 10⁻⁴ of daily swing | 1.5×10⁻⁵ |
-| Energy: one step per sample, net flux = stored-heat rate | discrete conservation | 10⁻⁶ W m⁻² | 2×10⁻⁹ W m⁻² |
+| Bottom at 15 instead of 10 skin depths | bottom boundary placement | 0.01 K | 0.0035 K (0.0015 K) |
+| Energy: mean absorbed + Q = mean emitted, from samples | global energy balance | 0.005 W m⁻² | 0.0010 W m⁻² (0.0009) |
+| Energy: stored heat returns to start | periodicity | 10⁻⁴ of daily swing | 2.3×10⁻⁵ (1.5×10⁻⁵) |
+| Energy: one step per sample, net flux = stored-heat rate | discrete conservation | 10⁻⁶ W m⁻² | 3×10⁻⁹ W m⁻² (2×10⁻⁹) |
 
 Test (c) raises the geothermal flux because at the default Q the column sits near 24–30 K, where the radiative conductivity term is negligible.
 
-**Convergence study** (equatorial forcing, `practice/solver_grid.ipynb`). The error is mostly spatial and largest at sunrise. Against a reference with eight times finer spacing, the maximum surface error is 0.71 K with the paper's suggested m = 10, n = 5 (21 nodes), 0.19 K at the defaults (39 nodes) and 0.046 K at m = 40, n = 20 (74 nodes): second order. Time error at hourly forcing is at most 0.015 K with 1800 s steps.
+**Convergence study** (equatorial forcing, `practice/solver_grid.ipynb`, H = 0.068 m; the same to the precision given at 0.06 m). The error is mostly spatial and largest at sunrise. Against a reference with eight times finer spacing, the maximum surface error is 0.71 K with the paper's suggested m = 10, n = 5 (21 nodes), 0.19 K at the defaults (39 nodes) and 0.046 K at m = 40, n = 20 (74 nodes): second order. Time error at hourly forcing is at most 0.015 K with 1800 s steps.
 
-**Cost.** One equatorial lunation sampled hourly (708 samples), default settings: about 15 ms per cycle and 0.38 s to periodic steady state (25 cycles), single-threaded, on an Intel Core Ultra 9 275HX (Numba 0.68.1, NumPy 2.5.5). The first call in a fresh environment also compiles the kernel (about 5 s, then cached on disk).
+**Cost.** One equatorial lunation sampled hourly (708 samples), default settings, H = 0.06 m: about 15 ms per cycle and 0.38 s to periodic steady state (25 cycles), single-threaded, on an Intel Core Ultra 9 275HX (Numba 0.68.1, NumPy 2.5.5). At the default H = 0.068 m, steady state takes 27 cycles; the time per cycle doesn't depend on H. The first call in a fresh environment also compiles the kernel (about 5 s, then cached on disk).
 
-**Sanity check (not a validation).** Flat equator, synthetic clipped-cosine forcing at 1 AU with Hayne's angle-dependent albedo (Eq. A8, A0 = 0.12), default parameters. Noon maximum 385.2 K, pre-dawn minimum 93.7 K, midnight 100.3 K. The Diviner equatorial values quoted in Hayne et al. Table A2 (from Vasavada et al. 2012) are 385 K, 95 K and 101 K. Deliverable 5 does the real comparison.
+**Sanity check (not a validation).** Flat equator, synthetic clipped-cosine forcing at 1 AU with Hayne's angle-dependent albedo (Eq. A8, A0 = 0.12). At the default H = 0.068 m: noon maximum 385.2 K, pre-dawn minimum 92.9 K, midnight 99.4 K. With the standard model (H = 0.06 m): 385.2 K, 93.7 K and 100.2 K. The Diviner equatorial values quoted in Hayne et al. Table A2 (from Vasavada et al. 2012) are 385 K, 95 K and 101 K. Deliverable 5 does the real comparison.
 
-**Limits.** One-dimensional and driven by the absorbed flux it is given: no lateral conduction, scattered light or terrain re-radiation (see Limitations). Below about 90 K the heat capacity is an extrapolation. Depth outputs are linear interpolations between nodes. Midway between nodes this adds error where the profile curves most: up to 1.1 K in the top centimetre (against 0.15 K at the nodes themselves) and 0.3–0.4 K at 2–5 cm, for the equatorial case. If depth outputs are adopted (open decision 1), placing nodes at the requested depths or using higher-order interpolation would remove most of this.
+**Limits.** One-dimensional and driven by the absorbed flux it is given: no lateral conduction, scattered light or terrain re-radiation (see Limitations). Below about 90 K the heat capacity is an extrapolation. Depth outputs are linear interpolations between nodes. Midway between nodes this adds error where the profile curves most: up to 1.1 K in the top centimetre (against 0.16 K at the nodes themselves) and 0.3–0.4 K at 2–5 cm, for the equatorial case at H = 0.06 or 0.068 m. If depth outputs are adopted (open decision 1), placing nodes at the requested depths or using higher-order interpolation would remove most of this.
 
 
 ## Solver triangulation and Diviner check
@@ -93,14 +97,14 @@ Two questions, answered separately. **Triangulation:** does the solver solve Hay
 
 `heat1d` is Paul Hayne's thermal model (github.com/phayne/heat1d, MIT license, confirmed from the repository's `LICENSE`). It is a dev dependency pinned to commit `5b73a6c` (Python package `heat1d` 0.4.1, unreleased, in the repository's `python/` folder), installed through uv from GitHub. Its explicit solver is the scheme of Hayne et al. Appendix A2: forward Euler on Eq. A17, with a Newton solve of the surface balance (Eqs. A21–A29). That is the solver used here. This project's solver was written without reading heat1d's code (see "Ground-truth solver"). heat1d's code was read in full for this comparison, after the solver was finished, and the solver is not changed by it.
 
-**heat1d's defaults for the open parameters.** H = 0.07 m (`heat1d.planets.Moon.H`, also its example YAML). Kd = 3.4×10⁻³ W m⁻¹ K⁻¹ (Python and C). Ks = 7.4×10⁻⁴ W m⁻¹ K⁻¹. heat1d's own validation suite overrides H to 0.06 m, calling it "the paper's standard model value". The C program takes H on its command line, and its usage text says "0.06 is typical". So heat1d's defaults agree with neither 0.06 m (Table A1) nor 0.068 m (the paper's global mean) for H, and agree with Table A1 for Kd. This repo's defaults are unchanged (H = 0.06 m, Kd = 3.4×10⁻³).
+**heat1d's defaults for the open parameters.** H = 0.07 m (`heat1d.planets.Moon.H`, also its example YAML). Kd = 3.4×10⁻³ W m⁻¹ K⁻¹ (Python and C). Ks = 7.4×10⁻⁴ W m⁻¹ K⁻¹. heat1d's own validation suite overrides H to 0.06 m, calling it "the paper's standard model value". The C program takes H on its command line, and its usage text says "0.06 is typical". So heat1d's defaults agree with neither 0.06 m (Table A1) nor 0.068 m (the paper's global mean) for H, and agree with Table A1 for Kd. This repo's default H is 0.068 m (see "Parameter choices"), but nothing in this section uses it: every case runs the standard model (H = 0.06 m) or the H stated in the case.
 
 ### Method: same forcing, same parameters, both at periodic steady state
 
 - **Forcing.** One absorbed-flux series per case, computed by heat1d (`precompute_diurnal_flux`), is given to both solvers. It is sampled 708 times per synodic day (dt = 3603.7 s); each solver interpolates linearly between samples. The flat surface sits at the stated latitude, at zero declination and 1 AU, with Eq. A8 albedo (A0, a = 0.06, b = 0.25). heat1d's default Moon follows Earth's eccentric orbit with local noon at perihelion (0.983 AU) and a declination that drifts through the month. The script removes both (circular orbit, zero obliquity), giving the paper's standard case. An independent evaluation of Eqs. A8–A9 in the script matches heat1d's series to 2×10⁻⁷ W m⁻², which is rounding (checked for every case, and in `tests/test_triangulation.py`).
 - **Parameters.** Table A1 for both, with heat1d's H set to each case's value.
 - **heat1d's spin-up.** heat1d is equilibrated with its own explicit solver for 10 years (20 on the refined grid), as the paper does (Appendix A2.4). It then runs 4 output lunations on the supplied series, and the last one is compared. heat1d's default equilibration (a Fourier-matrix solution followed by three explicit cycles) is not used. It leaves the explicit solver's deep column drifting by about 0.15 K per lunation with about 2 K still to go, because heat1d's Fourier-matrix and explicit solvers settle at deep temperatures about 4 K apart. Every heat1d run's last cycle-to-cycle change is 0.005 K or less, except 75° on the refined grid (0.077 K). That one is a persistent jitter at the surface just after sunrise, not unfinished spin-up: it is unchanged between 10 and 20 years of equilibration and falls to 0.0006 K when heat1d's property cache (below) is disabled.
-- **This solver** at its defaults, and at a refined grid (m = 40, n = 20, 900 s steps) to measure its own discretization error. All runs converged.
+- **This solver** at its default grid, and at a refined grid (m = 40, n = 20, 900 s steps) to measure its own discretization error. All runs converged.
 - **Grids.** heat1d at its default grid (m = 10, n = 4, bottom at 20 surface skin depths: 19 nodes, 3.0 mm top layer, 0.66 m) and refined (m = 40, n = 20: 78 nodes). At the equator, also at m = 20, n = 10 (40 nodes).
 - **Metrics.** Noon maximum is the cycle's maximum. The pre-dawn minimum is the lowest temperature while the flux is zero. Midnight is sample 354 of 708, which falls exactly at local midnight. Depth temperatures are linear between nodes in both codes.
 
@@ -124,7 +128,7 @@ Two questions, answered separately. **Triangulation:** does the solver solve Hay
 
 ![heat1d against this solver at the equator, H and albedo varied](figures/triangulation_equator_params.png)
 
-**Surface temperature, K.** This solver at its defaults; heat1d at its default grid (m = 10, n = 4) and refined (m = 40, n = 20). Differences are heat1d minus this solver, over the 708 samples.
+**Surface temperature, K.** This solver at its default grid; heat1d at its default grid (m = 10, n = 4) and refined (m = 40, n = 20). Differences are heat1d minus this solver, over the 708 samples.
 
 | Case | This solver: noon / pre-dawn / midnight | heat1d default | heat1d refined | RMSE, max: default | RMSE, max: refined |
 |---|---|---|---|---|---|
@@ -163,7 +167,7 @@ Two questions, answered separately. **Triangulation:** does the solver solve Hay
 | 0°, H = 0.06 m, A0 = 0.08 | 0.02, 0.17 | +0.10 | 0.69, 3.56 | −4.12 |
 | 0°, H = 0.06 m, A0 = 0.16 | 0.02, 0.14 | +0.09 | 0.69, 3.23 | −3.93 |
 
-**heat1d under grid refinement, equator, default parameters.** This solver: 93.73 K pre-dawn, 100.24 K at midnight, 252.87 K mean at 50 cm (252.96 K on its refined grid).
+**heat1d under grid refinement, equator, standard model (H = 0.06 m).** This solver: 93.73 K pre-dawn, 100.24 K at midnight, 252.87 K mean at 50 cm (252.96 K on its refined grid).
 
 | heat1d run | Nodes | Pre-dawn min | Midnight | 50 cm mean | Surface RMSE, max vs this solver |
 |---|---|---|---|---|---|
@@ -188,7 +192,7 @@ Two questions, answered separately. **Triangulation:** does the solver solve Hay
 
 ![Equatorial curve against Table A2, and nights at 0°, 30° and 60° against Figure A2](figures/diviner_check.png)
 
-Sources, all from Hayne et al. (2017), published version (its appendix numbering matches the preprint cited elsewhere here):
+Sources, all from Hayne et al. (2017), doi:10.1002/2017JE005387:
 
 - **Table A2:** equatorial Diviner values from Vasavada et al. (2012). Noon 385 K, midnight 101 K, minimum night 95 K, stated for A0 = 0.12.
 - **Figure A2 (approximate: values read off a figure):** nighttime Diviner regolith temperatures, nine points each at 0°, 30° and 60°. The published PDF draws the figure as vectors, so each marker's centre was taken from its drawing path and converted with the axis tick marks (tick-fit residuals below 0.001 h and 0.001 K). They agree with the digitization heat1d ships (`data/diviner_regtemp_lat*.csv`) to within 0.5 K.
@@ -200,16 +204,16 @@ Sources, all from Hayne et al. (2017), published version (its appendix numbering
 | Run | Noon max | Midnight | Pre-dawn min | Fig. A2 mean residual | Fig. A2 RMSE |
 |---|---|---|---|---|---|
 | Table A2 (Diviner) | 385 | 101 | 95 | | |
-| Eq. A8 albedo, H = 0.06 m (default) | 385.2 | 100.2 | 93.7 | +0.68 | 0.69 |
+| Eq. A8 albedo, H = 0.06 m (standard model) | 385.2 | 100.2 | 93.7 | +0.68 | 0.69 |
 | constant A0 = 0.12, H = 0.06 m | 385.2 | 101.8 | 95.1 | +2.28 | 2.30 |
 | Eq. A8 albedo, H = 0.03 m | 385.0 | 105.1 | 98.0 | +5.49 | 5.50 |
-| Eq. A8 albedo, H = 0.068 m (paper's global mean) | 385.2 | 99.4 | 92.9 | −0.15 | 0.21 |
+| Eq. A8 albedo, H = 0.068 m (paper's global mean; default) | 385.2 | 99.4 | 92.9 | −0.15 | 0.21 |
 | Eq. A8 albedo, H = 0.07 m (heat1d's default) | 385.2 | 99.2 | 92.7 | −0.33 | 0.36 |
 | Eq. A8 albedo, H = 0.10 m | 385.3 | 97.1 | 90.6 | −2.47 | 2.48 |
 
-**Figure A2 nighttime points, default parameters** (this solver minus Diviner): mean residual +0.68 K at 0° (largest 0.97 K), +0.41 K at 30° (0.66 K), +0.47 K at 60° (1.00 K).
+**Figure A2 nighttime points, standard model (H = 0.06 m)** (this solver minus Diviner): mean residual +0.68 K at 0° (largest 0.97 K), +0.41 K at 30° (0.66 K), +0.47 K at 60° (1.00 K).
 
-**Diurnal means.** This solver, Figure A1's model curves (approximate) and the Apollo measurements (±5 K), K. The column is deepened to 20 deep skin depths (1.44 m) so 1.30 m lies inside it.
+**Diurnal means.** This solver with the standard model (H = 0.06 m), Figure A1's model curves (approximate) and the Apollo measurements (±5 K), K. The column is deepened to 20 deep skin depths (1.44 m) so 1.30 m lies inside it.
 
 | Forcing | Latitude | Surface: this solver / Fig. A1 / Apollo | 1 m: this solver / Fig. A1 | Probe depth: this solver / Apollo |
 |---|---|---|---|---|
@@ -226,9 +230,9 @@ Sources, all from Hayne et al. (2017), published version (its appendix numbering
 **Reading it.**
 
 - **Equatorial noon** matches Table A2 (385.2 against 385 K) with either albedo law. Noon temperature is nearly radiative equilibrium at normal incidence, where Eq. A8 reduces to A0.
-- **Equatorial night.** With the default parameters and Eq. A8 albedo, the night is 0.8 K colder at midnight and 1.3 K colder before dawn than Table A2. It is 0.7 K warmer than the Figure A2 points. Table A2's values are stated for A0 = 0.12; with a constant A0 = 0.12 the night is 1.4–1.6 K warmer than with Eq. A8, because the angle-dependent albedo cuts the afternoon heating that the night radiates away. That run matches Table A2 to 0.8 K at midnight and 0.1 K before dawn. Which albedo law Table A2's "(A0 = 0.12)" means isn't stated; Table A2's midnight and pre-dawn values both fall between the two runs.
-- **Night against H.** Nights get colder as H grows: a thicker low-density, low-conductivity layer insulates the surface from the heat stored below. Over 0.03–0.10 m the pre-dawn minimum spans 98.0–90.6 K. Against the Figure A2 points, H = 0.068 m (the paper's global mean) fits best (RMSE 0.21 K), 0.07 m next (0.36 K) and 0.06 m (Table A1, the default) third (0.69 K). Against Table A2's minimum, 0.06 m is closest of the three with Eq. A8 albedo. These are small differences, at a single equatorial location, against values read off a figure. They are evidence for the open H decision, not a settlement of it.
-- **30° and 60°.** The default parameters are within 1 K of every Figure A2 point, 0.4–0.5 K warm on average.
+- **Equatorial night.** With the standard model (H = 0.06 m) and Eq. A8 albedo, the night is 0.8 K colder at midnight and 1.3 K colder before dawn than Table A2. It is 0.7 K warmer than the Figure A2 points. Table A2's values are stated for A0 = 0.12; with a constant A0 = 0.12 the night is 1.4–1.6 K warmer than with Eq. A8, because the angle-dependent albedo cuts the afternoon heating that the night radiates away. That run matches Table A2 to 0.8 K at midnight and 0.1 K before dawn. Which albedo law Table A2's "(A0 = 0.12)" means isn't stated; Table A2's midnight and pre-dawn values both fall between the two runs.
+- **Night against H.** Nights get colder as H grows: a thicker low-density, low-conductivity layer insulates the surface from the heat stored below. Over 0.03–0.10 m the pre-dawn minimum spans 98.0–90.6 K. Against the Figure A2 points, H = 0.068 m (the paper's global mean, now the default) fits best (RMSE 0.21 K), 0.07 m next (0.36 K) and 0.06 m (Table A1, the standard model) third (0.69 K). Against Table A2's minimum, 0.06 m is closest of the three with Eq. A8 albedo. These are small differences, at a single equatorial location, against values read off a figure. They support the choice of default (see "Parameter choices") but don't fix H at any particular site.
+- **30° and 60°.** The standard model is within 1 K of every Figure A2 point, 0.4–0.5 K warm on average.
 - **Apollo and Figure A1.** With the Figure A1 caption's settings (Table A1 parameters, 1.017 AU), this solver is 7–10 K below both the paper's own Figure A1 curves and the Apollo measurements. It is outside Table A2's ±5 K at both sites. This is not a solver difference: heat1d's diurnal means agree with this solver's to within 0.5 K, and its deep temperatures converge to this solver's under refinement. The paper's Figure A1 curves are instead matched to within 0.7–3.2 K by the setting heat1d's own validation suite uses for these sites: mare albedo A0 = 0.06, with a and b scaled by the same factor, at 1 AU. With that setting this solver is within ±5 K of all four Apollo values (214.8 / 216, 258.7 / 256, 212.4 / 211, 253.9 / 252). The likeliest reading is that Figure A1 was not made with A0 = 0.12 at 1.017 AU as its caption says. Its distance and albedo can't be recovered from the paper. That is an open question about the source, so no Apollo constraint is used to set this project's parameters.
 
 **Limits of the check.** Diviner values are for flat, equatorial to mid-latitude regolith; the figure points are approximate; the Diviner Figure A2 data were themselves the data Hayne et al. fitted Ks and Kd to, so a good match is expected rather than independent. Nothing here tests polar or shadowed conditions, where this 1D direct-sunlight model omits scattered light and terrain re-radiation (polar night minimums are not predictions).

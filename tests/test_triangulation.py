@@ -6,12 +6,13 @@ two pieces of it from drifting:
 
 * the shared forcing: heat1d's absorbed-flux series for the circularised Moon is
   Hayne et al. Eqs. A8-A9 at zero declination, evaluated independently here;
-* one equatorial default case, this solver against heat1d's explicit solver at
-  heat1d's default grid. The tolerances are set from the agreement observed on
-  2026-11-23 with these exact settings, plus a margin. They are regression
-  bounds, not accuracy claims: at its default grid heat1d carries a first-order
-  discretization error (about +5 K at 50 cm, -0.8 K in the pre-dawn minimum)
-  that shrinks toward this solver's answer as heat1d's grid is refined.
+* one equatorial standard-model case (Table A1, H = 0.06 m), this solver
+  against heat1d's explicit solver at heat1d's default grid. The tolerances are
+  set from the agreement observed on 2026-11-23 with these exact settings, plus
+  a margin. They are regression bounds, not accuracy claims: at its default
+  grid heat1d carries a first-order discretization error (about +5 K at 50 cm,
+  -0.8 K in the pre-dawn minimum) that shrinks toward this solver's answer as
+  heat1d's grid is refined.
 
 heat1d is a dev dependency (pinned in pyproject.toml); the tests skip without it.
 """
@@ -64,7 +65,7 @@ def test_heat1d_flux_is_eqs_a8_a9(lat, kwargs):
 
 @pytest.mark.slow
 def test_equator_default_against_heat1d():
-    """Equator, default parameters, 1 AU: this solver against heat1d's default grid.
+    """Equator, standard model (H = 0.06 m), 1 AU: this solver against heat1d's default grid.
 
     Observed on 2026-11-23 with heat1d equilibrated for 5 years (heat1d minus this
     solver): surface RMSE 0.72 K, max 3.26 K (at sunrise); noon maximum +0.10 K;
@@ -74,11 +75,12 @@ def test_equator_default_against_heat1d():
     solver's deep temperature in either direction fails.
     """
     flux, dt = tri.absorbed_flux(0.0)
-    ours, _ = tri.run_ours(flux, dt, tri.RegolithParams())
+    params = tri.RegolithParams.standard_model()
+    ours, _ = tri.run_ours(flux, dt, params)
     h = tri.run_heat1d(
         {
             "lat": 0.0,
-            "H": 0.06,
+            "H": params.H,
             "A0": 0.12,
             "grid": "default",
             "years": 5,

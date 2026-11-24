@@ -32,7 +32,7 @@ from lunar_thermal.properties import (
     specific_enthalpy,
 )
 
-N_SAMPLES = 708  # hourly sampling of one synodic month (dt = 3602 s)
+N_SAMPLES = 708  # hourly sampling of one synodic month (dt = 3603.7 s)
 
 # Constant-property regolith for the analytic cases: uniform density and
 # conductivity, no radiative term, constant heat capacity.
@@ -147,9 +147,9 @@ def test_c_steady_state_temperature_dependent_conductivity():
 
     At steady state every layer carries the same flux, so K(z, T) dT/dz = Q
     with T(0) = (Q / (eps sigma))^(1/4). The raised flux spreads temperatures
-    from 55 K at the surface to 165 K at the bottom, so conductivity varies
-    with both depth (Kc from Ks to Kd) and temperature (the radiative term
-    adds 28% at the bottom). The default Q = 0.018 W m^-2 would leave the
+    from 55 K at the surface to 166 K at the bottom (default H = 0.068 m), so
+    conductivity varies with both depth (Kc from Ks to Kd) and temperature
+    (the radiative term adds 29% at the bottom). The default Q = 0.018 W m^-2 would leave the
     column near 24-30 K, where the radiative term is negligible and the test
     would not exercise it.
 
@@ -192,7 +192,7 @@ def test_d_converged_result_is_close_to_true_periodic_state(equatorial):
 
     Reference: plain repetition (no extrapolation) to 1e-6 K. Tolerance: 2x
     the spin-up tolerance, since the projected drift is an estimate. Measured:
-    0.006 K for a 0.01 K tolerance.
+    0.008 K for a 0.01 K tolerance (default H = 0.068 m; 0.006 K at 0.06 m).
     """
     flux, dt, result = equatorial
     reference = S.solve_periodic(
@@ -240,7 +240,8 @@ def test_e_self_convergence(equatorial):
     root of the default's, so every layer is close to half as thick.
 
     Tolerance: 0.25 K maximum and 0.05 K rms over the cycle. Measured: 0.15 K
-    maximum (at sunrise, where the surface warms fastest) and 0.017 K rms.
+    maximum (at sunrise, where the surface warms fastest) and 0.017 K rms, at
+    the default H = 0.068 m (the same at 0.06 m).
     """
     flux, dt, coarse = equatorial
     fine = S.solve_periodic(
@@ -255,8 +256,9 @@ def test_e_self_convergence(equatorial):
 def test_bottom_boundary_is_deep_enough(equatorial):
     """Moving the bottom from 10 to 15 deep skin depths changes nothing that matters.
 
-    Tolerance: 0.01 K at the surface, 5 cm and 20 cm. Measured: 0.0015 K, which
-    is spin-up tolerance rather than the bottom boundary.
+    Tolerance: 0.01 K at the surface, 5 cm and 20 cm. Measured: 0.0035 K
+    (default H = 0.068 m; 0.0015 K at 0.06 m), which is spin-up tolerance
+    rather than the bottom boundary.
     """
     flux, dt, default = equatorial
     deeper = S.solve_periodic(

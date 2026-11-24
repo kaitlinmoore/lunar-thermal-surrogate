@@ -4,8 +4,9 @@ This is the project's ground truth: given one period of absorbed solar flux at
 the surface, it returns the temperatures the regolith settles into when that
 period repeats indefinitely. The FNO surrogate is trained to imitate it.
 
-Physics (Hayne et al. 2017, Appendix A; equation numbers from the arXiv
-preprint, arXiv:1711.00977):
+Physics (Hayne et al. 2017, JGR Planets 122, 2371-2400,
+doi:10.1002/2017JE005387, Appendix A; equation numbers are the published
+article's, which match the arXiv preprint, arXiv:1711.00977):
 
 * heat equation ``rho cp dT/dt = d/dz (K dT/dz)`` (Eq. A1), with density
   ``rho(z)`` (Eq. A2), conductivity ``K(z, T)`` (Eqs. A4, A5) and heat capacity
@@ -104,7 +105,9 @@ class GridSettings:
     layer is a fraction of the skin depth thick, and thicknesses then grow by a
     constant factor. Each default is a logged instrument (`docs/changelog.md`),
     chosen from a convergence study on equatorial forcing against a reference
-    run with four times finer spacing and a 30-60 s step:
+    run with four times finer spacing and a 30-60 s step. The study used the
+    standard model (H = 0.06 m); the surface errors below are the same to the
+    stated precision at the default H = 0.068 m:
 
     * Space dominates the error. With the paper's suggested ``m = 10, n = 5``
       the surface temperature is off by up to 0.7 K (at sunrise; rms 0.08 K)
@@ -131,7 +134,7 @@ class GridSettings:
             is interpolated linearly between samples.
         reference_temperature: Temperature at which skin depths are
             evaluated, K. Diffusivity is lowest around 200-250 K for the
-            standard parameters, so 250 K gives a thin (conservative) top
+            Table A1 parameters, so 250 K gives a thin (conservative) top
             layer.
     """
 
@@ -159,8 +162,9 @@ class SpinupSettings:
     Spin-up is slow because of one mode: the deep column warming or cooling
     towards its final mean temperature through the insulating surface layer.
     Once the faster transients have died, each cycle shrinks that mode by a
-    nearly constant ratio ``r`` (about 0.95 per lunation for the standard
-    parameters at the equator). Two consequences shape this class:
+    nearly constant ratio ``r`` (about 0.95 per lunation at the equator:
+    0.949 for H = 0.06 m, 0.950 for the default 0.068 m). Two consequences
+    shape this class:
 
     * A small change between cycles does not mean the run is close to steady
       state: the drift still to come is the geometric sum ``change * r / (1 -
@@ -171,7 +175,9 @@ class SpinupSettings:
       successive estimates, the end-of-cycle state is moved by ``change * r /
       (1 - r)``. For equatorial forcing that cuts spin-up from 140-190 cycles
       to 25-50, and lands closer to the true periodic state (within 0.009 K
-      for a 0.01 K tolerance, against 0.0105 K for plain repetition).
+      for a 0.01 K tolerance, against 0.0105 K for plain repetition), with
+      H = 0.06 m. At the default H = 0.068 m: 141-185 cycles to 27-49, within
+      0.0096 K against 0.0105 K.
 
     Attributes:
         tolerance: K. Converged when the largest change, over every grid node
@@ -228,8 +234,8 @@ class SolverResult:
             time, K, shape ``(n_t, n_d)``, interpolated linearly between grid
             nodes; ``None`` if no depths were requested. Interpolation adds
             error where the profile curves: midway between nodes, up to ~1 K
-            in the top centimetre and 0.3-0.4 K at 2-5 cm (equatorial case),
-            against ~0.2 K at the nodes themselves.
+            in the top centimetre and 0.3-0.4 K at 2-5 cm (equatorial case,
+            H = 0.06 or 0.068 m), against ~0.2 K at the nodes themselves.
         grid: Depth of each grid node, m, shape ``(n_z,)``. ``grid[0] = 0``.
         node_temperature: Temperature at every grid node and sample time, K,
             shape ``(n_t, n_z)``.
@@ -351,7 +357,10 @@ def solve_periodic(
             incidence angle are already applied (that is `forcing.py`'s job).
             Must be finite and non-negative; zeros (night, shadow) are fine.
         dt: Sampling step of the forcing, s.
-        params: Regolith parameters; defaults to Hayne et al. (2017).
+        params: Regolith parameters; defaults to `RegolithParams()`, the
+            Table A1 values of Hayne et al. (2017) with H at the measured
+            global mean, 0.068 m. Pass `RegolithParams.standard_model()` to
+            reproduce the paper's standard model (H = 0.06 m).
         grid: Space and time discretization; defaults to `GridSettings()`.
         spinup: Spin-up control; defaults to `SpinupSettings()`.
         output_depths: Depths, m, at which to report temperature in addition
