@@ -241,6 +241,58 @@ Sources, all from Hayne et al. (2017), doi:10.1002/2017JE005387:
 
 ## Training data and sampling
 
+### Sampling design
+
+Code: `src/lunar_thermal/sample_sites.py`; tests: `tests/test_sampling.py`. The module picks the training and development points, gives each its parameters and window dates, and writes the manifest the dataset builder reads. It is also the leakage guard for the 23 held-out sites. It reads the sites' coordinates from the vendored registry (`lss/registry/sites.yaml`, through `load_sites`), never from a hand-copied list, and computes nothing at them.
+
+**Bands.** Points are shared between latitude bands in fixed proportions. The table is data (`Band` records; `BANDS_V1`), and a different one can be loaded from JSON (`bands_from_json`, or `--bands` on the command line) without a code change. Counts per band are allocated rather than drawn (largest remainder), so a manifest's band shares match the table to within one point.
+
+| Band | Latitudes | Share | Held-out sites it stands for | Terrain stack recorded (seed 0, 6,000 points) |
+|---|---|---|---|---|
+| `south_polar` | 90–80°S | 50% | the 17 south polar sites (8 PGDA tiles, 9 Artemis III candidates), 83.6–89.8°S | 3,000: 80 m polar map near field, 240 m far field |
+| `south_subpolar` | 80–74°S | 10% | none; the transition from the polar maps | 509: 240 m polar map; 91 in the 80 m map's corners: 80 m near field, 240 m far field |
+| `mid` | 74°S–74°N | 30% | the 6 Apollo sites, 9.0°S–26.1°N | 1,660: `LDEM_128` alone; 127: 240 m near field with an `LDEM_128` far field (where 400 km rays leave the 240 m map); 13: 240 m polar map alone |
+| `north_polar` | 74–90°N | 10% | none | 600: `LDEM_128` alone |
+
+Half the points go to the south polar band because 17 of the 23 sites are there. Its illumination (the Sun always near the horizon, long shadows from distant terrain) is the regime the surrogate most needs to learn and the one least like the equatorial forcing. The 6 Apollo sites span the mid-latitude band, which covers near and far side. The two smaller bands have no held-out site: 74–80°S fills the gap between the polar and mid-latitude regimes, and 74–90°N gives a second high-latitude regime on different terrain and global-map horizons. Each point's actual terrain stack comes from the engine's resolver (`resolve`), recorded in full: every layer, its role and the ray range it is used over, plus the engine's fidelity summary. The band's expected terrain in the table is descriptive only.
+
+**Area-uniform within a band.** The area of a sphere between latitudes φ and φ + dφ is proportional to cos φ dφ = d(sin φ). So drawing sin(latitude) uniformly between the band's limits, and longitude uniformly, is uniform by area (`draw_area_uniform`). Drawing latitude itself uniformly would crowd points towards the poles. The test checks sin(latitude) and longitude against a uniform distribution with a Kolmogorov–Smirnov test at significance 0.001 on 20,000 draws per band, and checks that the same test rejects latitude drawn uniformly in degrees.
+
+**Exclusion radius.** A candidate closer than the exclusion radius to any of the 23 sites is rejected and another drawn (rejection sampling). Distance is great-circle distance on the engine's 1737.4 km sphere (`MOON_RADIUS_M`), by the haversine formula. What is kept is uniform by area over the band minus the exclusion circles. Each point records its nearest site and the distance to it. The radius is an instrument: it starts at 50 km and will be set from the dataset builder's test run, which measures how similar horizons are as a function of distance from a site. An analysis-only sampler (`sample_near_sites`) supplies the points for that study, in rings at 5, 10, 20, 50, 100 and 200 km around every site, 8 bearings per ring, with one random rotation per site so that each bearing is a ray outward from the site. Those points are a separate type, have split `analysis`, and the training manifest writer refuses them.
+
+What 50 km removes, by exact quadrature (`excluded_area`; overlapping circles counted once):
+
+| Region | Area excluded | Share of the region |
+|---|---|---|
+| `south_polar` band (90–80°S) | 66,300 km² | 23.0% |
+| 90–88°S | 10,600 km² | 91.9% |
+| 88–86°S | 20,900 km² | 60.3% |
+| 86–84°S | 22,300 km² | 38.6% |
+| 84–82°S | 12,500 km² | 15.5% |
+| 82–80°S | 0 | 0 |
+| `mid` band | 47,100 km² (the six Apollo circles) | 0.13% |
+| `south_subpolar`, `north_polar` | 0 | 0 |
+
+The sampler agrees: in the seed-0 draw the south polar band rejected 850 of 3,850 candidates (22.1%, within two binomial standard errors of 23.0%), and the mid band 1 of 1,801. The cost is concentrated near the pole, where 5 of the sites are: in the seed-0 draw, 17 of 3,000 south polar points lie south of 88°S and none south of 88.5°S. Smaller radii remove less of the south polar band: 0.4% at 5 km, 1.5% at 10 km, 5.3% at 20 km, 7.8% at 25 km; 100 km would remove 52.9%.
+
+Several held-out sites are almost the same place: PGDA Site20 and the Artemis III Mons Mouton candidate are 0.3 km apart, Site06 and Nobile Rim 1 4.1 km, Site23 and Malapert Massif 4.4 km, Site01 and Site04 10.1 km. The exclusion treats every site alike, so this changes nothing here; it matters when the held-out results are read, since those sites are not independent tests.
+
+**Why shared far-field terrain is not leakage.** A horizon is traced out to 400 km, so a training point 50 km from a site sees much of the same distant terrain: the same crater rims and massifs on its horizon, at slightly different angles. That is not leakage. The surrogate learns a map from a forcing series (absorbed flux) and H to temperatures, and that map is the same physics at every location. Nothing about a site's identity or its temperatures enters training. What would leak is the same, or nearly the same, forcing in both sets: a point so close to a site that its horizon, and so its sunlight, is effectively the site's own. The exclusion radius is there to prevent that, and the horizon-similarity study measures how close is too close. A limit stays: training points just outside the radius have forcing more like the sites' than a random place on the Moon would, which makes the held-out test somewhat easier than a test on unseen terrain would be.
+
+**Leakage guard in the writer.** `write_manifest` re-checks every row before writing anything. It recomputes each point's distance to every registry site rather than trusting the stored value, refuses any row closer than its exclusion radius, refuses analysis-only rows by type and by flag, refuses any split other than train and dev, refuses duplicate ids, and refuses a row whose terrain stack uses a 5 m PGDA site map (product 78, which lies on held-out sites; at 50 km no point comes close to one, but a much smaller radius could).
+
+**Splits by point.** Each band's points are split 85% train and 15% dev (rounded half up), by a seeded permutation. The split belongs to the point: its four windows, its H, its A0 and its horizon are all fields of the point's one row, so a point's windows can never land in different splits. Splitting by window would put the same place, the same horizon and the same H in both sets. Dev is not spatially separated from train: a dev point can lie a few kilometres from a training point. So dev scores will be more optimistic than held-out scores; the held-out sites, behind the exclusion radius, are the test of generalization to new places.
+
+**Parameters.** Drawn once per point, because they describe the place:
+- H uniform on [0.02, 0.12] m. Hayne et al. (2017) measure a global (±60°) mean and mode of 0.068 m with a standard deviation of about 0.7 cm, and Table A1 gives the full range as "0 to > 0.2 m". The training range is much wider than the measured spread around the mean. That is deliberate: H is unmeasured at the 17 polar sites (see "Parameter choices"), and the surrogate should not have to extrapolate in H.
+- A0 uniform on [0.05, 0.25], around Table A1's 0.12. It spans dark mare (heat1d's validation suite uses 0.06 for the Apollo mare sites) to bright highland. A0 reaches the surrogate only through the absorbed flux.
+
+**Windows.** Four window starts per point, each uniform over whole seconds from 2025-01-01T00:00:00Z to 2045-12-31T23:59:59Z, sorted. Each window is one lunation (29.530589 d) long and must end inside the SPICE kernels' coverage (1900–2050; the configuration is refused otherwise). The sampler checks against a constant just inside the measured coverage (1899-12-31T23:59:18Z to 2050-12-31T23:58:50Z), and a test checks that constant against the kernels when they are present. The held-out sites' evaluation dates are fixed at the freeze, not here.
+
+**Reproducibility.** One integer seed fixes everything. Each band has its own random streams for locations, splits, parameters and windows, derived from the seed and a CRC-32 of the band name and purpose through NumPy's `SeedSequence`. So the same seed and configuration give a byte-identical manifest, and changing one band leaves the others' points unchanged. Every row records the seed and the sampler version (`SAMPLER_VERSION`); the writer also saves the full configuration, the excluded site ids and the schema as JSON next to the CSV.
+
+**Manifest schema** (`MANIFEST_SCHEMA`; CSV, one row per point): `point_id`, `lat_deg`, `lon_deg` (planetocentric, east longitude in [−180, 180)), `band`, `split`, `H_m`, `albedo_A0`, `window_starts_utc` (ISO 8601, `;`-separated), `nearest_site_id`, `nearest_site_distance_m`, `exclusion_radius_m`, `terrain_summary`, `terrain_layers` (JSON), `seed`, `sampler_version`, `analysis_only` (always false). `read_manifest` reads it back and checks the header.
+
 ## Surrogate (FNO v1)
 
 ## Physics-informed surrogate (v2, exploratory)
