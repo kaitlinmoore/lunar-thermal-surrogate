@@ -1,15 +1,18 @@
 """Tests for lunar_thermal.properties against Hayne et al. (2017).
 
 Reference values are computed by hand from the published equations and the
-Table A1 parameters of Hayne et al. (2017), Appendix A (arXiv:1711.00977
-numbering). The arithmetic is written out next to each value so it can be
-checked without running code.
+Table A1 parameters of Hayne et al. (2017), Appendix A (doi:10.1002/2017JE005387;
+the numbering matches the arXiv preprint). The arithmetic is written out next
+to each value so it can be checked without running code. None of the hand
+values depends on H: they are taken at multiples of H or at depth.
 """
 
 import numpy as np
 import pytest
 
 from lunar_thermal.properties import (
+    H_MEASURED_MEAN,
+    H_STANDARD_MODEL,
     RegolithParams,
     conductivity,
     contact_conductivity,
@@ -22,12 +25,25 @@ from lunar_thermal.properties import (
 P = RegolithParams()
 
 
-# --- Defaults match Table A1 ------------------------------------------------
+# --- Defaults: measured H, everything else from Table A1 --------------------
+
+
+def test_default_h_is_measured_global_mean():
+    """H defaults to the paper's measured global mean (Section 4, Figure 9)."""
+    assert H_MEASURED_MEAN == 0.068
+    assert P.H == H_MEASURED_MEAN
+
+
+def test_standard_model_is_table_a1():
+    """The standard model is Table A1 throughout: the default with H = 0.06 m."""
+    std = RegolithParams.standard_model()
+    assert H_STANDARD_MODEL == 0.06
+    assert std.H == 0.06  # "avg. = 0.06 m"
+    assert std == RegolithParams(H=0.06)
 
 
 def test_defaults_match_table_a1():
-    """Every default is the Table A1 standard-model value."""
-    assert P.H == 0.06  # "avg. = 0.06 m"
+    """Every default other than H is the Table A1 value."""
     assert P.rho_s == 1100.0
     assert P.rho_d == 1800.0
     assert P.k_s == 7.4e-4

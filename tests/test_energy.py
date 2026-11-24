@@ -15,7 +15,7 @@ from synthetic_forcing import equatorial_absorbed_flux
 from lunar_thermal import solver as S
 from lunar_thermal.properties import STEFAN_BOLTZMANN, RegolithParams
 
-N_SAMPLES = 708  # hourly sampling of one synodic month (dt = 3602 s)
+N_SAMPLES = 708  # hourly sampling of one synodic month (dt = 3603.7 s)
 PARAMS = RegolithParams()
 
 
@@ -36,7 +36,8 @@ def test_energy_in_equals_energy_out(converged):
 
     Tolerance: 0.005 W m^-2, about a quarter of the geothermal flux and 1.4e-5
     of the mean absorbed flux (354 W m^-2), so the check would catch a lost
-    or doubled geothermal term. Measured: 0.0009 W m^-2. The remaining
+    or doubled geothermal term. Measured: 0.0010 W m^-2 at the default H =
+    0.068 m (0.0009 at 0.06 m). The remaining
     imbalance comes from sampling: emission is averaged over hourly samples,
     while the solver steps three times per hour.
     """
@@ -49,8 +50,9 @@ def test_energy_in_equals_energy_out(converged):
 def test_stored_heat_returns_to_start(converged):
     """Column heat content at the end of the cycle equals that at its start.
 
-    Tolerance: 1e-4 of the heat content's swing over the day (1.0e7 J m^-2).
-    Measured: 1.5e-5, set by the spin-up tolerance (0.01 K).
+    Tolerance: 1e-4 of the heat content's swing over the day (9.9e6 J m^-2).
+    Measured: 2.3e-5 at the default H = 0.068 m (1.5e-5 at 0.06 m), set by the
+    spin-up tolerance (0.01 K).
     """
     _, _, result = converged
     H = S.column_heat_content(result.grid, result.node_temperature, PARAMS)
@@ -73,7 +75,8 @@ def test_discrete_energy_conservation():
     cycle's heat change, measured from two starting points one step apart.
     When the drift is smooth these agree, so net boundary flux times the
     period equals H_end - H_start. Tolerance: 1e-6 W m^-2 on the difference
-    of the two rates, against a stored rate of ~6e-5 W m^-2. Measured: 2e-9.
+    of the two rates, against a stored rate of ~9e-5 W m^-2. Measured: 3e-9
+    at the default H = 0.068 m (2e-9 at 0.06 m).
     """
     flux, dt = equatorial_absorbed_flux(N_SAMPLES)
     result = S.solve_periodic(

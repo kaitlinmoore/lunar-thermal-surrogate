@@ -26,10 +26,11 @@ Appendix A2.4) rather than its default Fourier-matrix shortcut, which leaves the
 column several kelvin from its own steady state. The last output cycle is compared, and its
 cycle-to-cycle change and projected remaining drift are recorded.
 
-**Cases** (`CASES`): flat surface at 0, 30, 60 and 75 degrees with default parameters; at the equator,
+**Cases** (`CASES`): flat surface at 0, 30, 60 and 75 degrees with the standard model (Table A1,
+H = 0.06 m; `RegolithParams.standard_model`); at the equator,
 H = 0.03 and 0.10 m and A0 = 0.08 and 0.16. Each case runs this solver at its default and a refined grid
 (its own discretization error) and heat1d at its default (m = 10, n = 4) and a refined grid (m = 40,
-n = 20). The equatorial default case also runs heat1d at m = 20, n = 10, and once with a diagnostic patch
+n = 20). The equatorial standard-model case also runs heat1d at m = 20, n = 10, and once with a diagnostic patch
 (`midpoint_conductivity`) that replaces heat1d's per-interface conductivity with the mean of the two
 nodes, to test what causes the disagreement at heat1d's default grid. The patch is applied in a worker
 process only, and only to that run; heat1d itself is not modified.
@@ -115,7 +116,7 @@ class Case:
 
     name: str
     lat: float  # degrees
-    H: float = 0.06  # m
+    H: float = 0.06  # m; the standard model (Table A1), as heat1d is set up here
     A0: float = 0.12  # Bond albedo at normal incidence (Eq. A8)
 
     @property
@@ -472,7 +473,7 @@ def run_triangulation(workers: int, years: int, out_cycles: int) -> dict:
     ]
     # Compile this solver's kernels once before timing anything.
     warm_flux, warm_dt = absorbed_flux(0.0)
-    run_ours(warm_flux, warm_dt, RegolithParams())
+    run_ours(warm_flux, warm_dt, RegolithParams.standard_model())
 
     # heat1d runs are slow (Python loop per explicit step), so they go to worker processes while this
     # process runs the fast solver.
@@ -579,10 +580,10 @@ def diviner_check(tri: dict) -> dict:
 
     # Equatorial curve, 1 AU: Eq. A8 albedo at several H, and the constant-albedo run Table A2 states.
     equator_runs = [
-        ("Eq. A8 albedo, H = 0.06 m (default)", 0.06, True),
+        ("Eq. A8 albedo, H = 0.06 m (standard model)", 0.06, True),
         ("constant A0 = 0.12, H = 0.06 m", 0.06, False),
         ("Eq. A8 albedo, H = 0.03 m", 0.03, True),
-        ("Eq. A8 albedo, H = 0.068 m (paper's global mean)", 0.068, True),
+        ("Eq. A8 albedo, H = 0.068 m (paper's global mean; default)", 0.068, True),
         ("Eq. A8 albedo, H = 0.07 m (heat1d's default)", 0.07, True),
         ("Eq. A8 albedo, H = 0.10 m", 0.10, True),
     ]
@@ -606,7 +607,7 @@ def diviner_check(tri: dict) -> dict:
         )
         curves[label] = res.surface_temperature
 
-    # Figure A2 points at 0, 30, 60 degrees against the default-parameter triangulation runs.
+    # Figure A2 points at 0, 30, 60 degrees against the standard-model triangulation runs (H = 0.06 m).
     for lat, pts in FIG_A2_DIVINER.items():
         name = f"lat{int(lat):02d}"
         surface = tri["ours"][name]["default"].surface_temperature
@@ -639,7 +640,7 @@ def diviner_check(tri: dict) -> dict:
             res, _ = run_ours(
                 flux,
                 dt,
-                RegolithParams(),
+                RegolithParams.standard_model(),
                 grid=GridSettings(bottom_skin_depths=20.0),
                 depths=(0.83, 1.0, 1.30),
                 spinup=SpinupSettings(max_cycles=2000),
@@ -683,7 +684,7 @@ def markdown_tables(rows: list[dict], div: dict) -> str:
     """The results tables as Markdown, for docs/methodology.md."""
     lines = []
     lines.append(
-        "**Surface temperature, K** (this solver at its defaults; heat1d at its default grid"
+        "**Surface temperature, K** (this solver at its default grid; heat1d at its default grid"
     )
     lines.append(
         "m = 10, n = 4 and refined m = 40, n = 20; differences heat1d minus this solver)\n"
@@ -746,7 +747,7 @@ def markdown_tables(rows: list[dict], div: dict) -> str:
 
     eq = rows[0]
     lines.append(
-        "\n**heat1d grid convergence, equator, default parameters** (this solver: "
+        "\n**heat1d grid convergence, equator, standard model (H = 0.06 m)** (this solver: "
     )
     lines.append(
         f"{eq['ours']['predawn_min']:.2f} K pre-dawn, {eq['ours']['midnight']:.2f} K midnight, "
@@ -787,7 +788,7 @@ def markdown_tables(rows: list[dict], div: dict) -> str:
         )
 
     lines.append(
-        "\n**Figure A2 nighttime points, default parameters** (this solver minus Diviner)\n"
+        "\n**Figure A2 nighttime points, standard model (H = 0.06 m)** (this solver minus Diviner)\n"
     )
     lines.append("| Latitude | Mean residual | Largest residual |")
     lines.append("|---|---|---|")
@@ -916,7 +917,7 @@ def figure_convergence(rows: list[dict], path: Path) -> None:
         ax.set_ylabel(ylabel, fontsize=8, color=INK_MUTED)
         _style(ax)
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.suptitle("Equator, default parameters: heat1d under grid refinement", y=0.995,
+    fig.suptitle("Equator, standard model (H = 0.06 m): heat1d under grid refinement", y=0.995,
                  fontsize=10, color=INK)  # fmt: skip
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.94), ncol=1,
                frameon=False, fontsize=8)  # fmt: skip
@@ -931,7 +932,7 @@ def figure_diviner(tri: dict, div: dict, path: Path) -> None:
 
     x = hours_after_noon()
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.2, 3.6))
-    default = div["curves"]["Eq. A8 albedo, H = 0.06 m (default)"]
+    default = div["curves"]["Eq. A8 albedo, H = 0.06 m (standard model)"]
     const = div["curves"]["constant A0 = 0.12, H = 0.06 m"]
     ax1.plot(x, default, color=C_OURS, lw=1.6, label="this solver, Eq. A8 albedo")
     ax1.plot(
@@ -946,7 +947,7 @@ def figure_diviner(tri: dict, div: dict, path: Path) -> None:
     )
     ax1.plot([17, 18], [TABLE_A2_EQUATOR["predawn_min"]] * 2, color=INK, lw=3)
     ax1.set_ylabel("Surface temperature (K)", fontsize=8, color=INK_MUTED)
-    ax1.set_title("Equator, 1 AU, default parameters", fontsize=9, color=INK)
+    ax1.set_title("Equator, 1 AU, standard model (H = 0.06 m)", fontsize=9, color=INK)
     ax1.legend(frameon=False, fontsize=7.5, loc="upper right")
     _clock_axis(ax1)
 
@@ -1099,7 +1100,7 @@ def main(argv: list[str] | None = None) -> int:
     args.figures.mkdir(parents=True, exist_ok=True)
     figure_overlays(
         tri, ["lat00", "lat30", "lat60", "lat75"], args.figures / "triangulation_latitudes.png",
-        "Flat surface, default parameters, 1 AU: heat1d against this solver",
+        "Flat surface, standard model (H = 0.06 m), 1 AU: heat1d against this solver",
     )  # fmt: skip
     figure_overlays(
         tri, ["eq_H0.03", "eq_H0.10", "eq_A0.08", "eq_A0.16"],
