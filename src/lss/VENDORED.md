@@ -5,9 +5,22 @@
 | | |
 |---|---|
 | Source repo | https://github.com/kaitlinmoore/nasa-lunar-site-scout |
-| Source commit | `aef153a` |
-| Copied | 2026-11-23, from the git blobs at that commit (`git cat-file blob aef153a:<path>`), so the bytes match the commit exactly |
-| License | Apache-2.0, kept: `LICENSE` in this folder is Penumbra Luna's `LICENSE` at `aef153a`, unchanged |
+| Source commit | `9d0c648` (`9d0c6482d583e1f6601005b7ce0855b067bef82a`) |
+| Copied | 2026-11-23, from the git blobs at that commit (`git cat-file blob 9d0c648:<path>`), so the bytes match the commit exactly |
+| License | Apache-2.0, kept: `LICENSE` in this folder is Penumbra Luna's `LICENSE` at `9d0c648`, unchanged |
+
+## Copy history
+
+| Date | Source commit | What changed in `src/lss` |
+|---|---|---|
+| 2026-11-23 | `aef153a` | first copy |
+| 2026-11-23 | `9d0c648` | re-copied `registry/terrain.py`, `horizon/core.py` and `horizon/cache.py`; every other file is identical at both commits (checked file by file against the blobs) |
+
+Upstream commits between the two copies:
+
+- `e43690e`: tests only. The whole and hidden disc fractions in `test_series.py::test_fraction_limits_and_half` are compared within 1e-12 instead of exactly (a GitHub-hosted runner gave 4.4e-19).
+- `13f58a1`: the resolver (`registry/terrain.py`). Where 400 km rays leave the 240 m polar map (about 73°S to 60°S, and the map's corners north of 60°S), the map is used out to the distance it holds in every direction (`full_reach_m`, a closed-form cap test) and `LDEM_128` from there to 400 km. Without a global layer the point is refused, with the reason on the new `TerrainStack.reason` field, which `horizon_at` and `cached_horizon` now put in `HorizonUnavailable`.
+- `9d0c648`: tests and methodology only. A new test of bodies high in the sky against exact sphere geometry (`tests/engine/test_high_elevation.py`), and Penumbra Luna methodology §3.1, §3.5 and §5.5.
 
 ## Rule: never edit `src/lss` here
 
@@ -47,7 +60,7 @@ No module in the copied set imports any left-out module (checked with grep over 
 
 ## Engine tests and the fetch script
 
-Also copied unchanged from `aef153a`, outside this folder:
+Also copied unchanged from Penumbra Luna, outside this folder (identical at `aef153a` and `9d0c648`; the three engine test files that changed between them were re-copied from `9d0c648`):
 
 - `scripts/fetch_data.py`: downloads the engine's data into `LSS_DATA_DIR` from the catalog in `lss/datafiles.py`, so this repo can rebuild its data on its own. `--verify` re-hashes local files against `LSS_DATA_DIR/MANIFEST.json`.
 - Engine tests, Penumbra Luna `tests/engine/` → `tests/lss/engine/` and `tests/contract/` → `tests/lss/contract/`:
@@ -67,7 +80,7 @@ Engine test files left out:
 | `tests/engine/test_datafiles.py` | loads `scripts/fetch_data.py` from `REPO_ROOT` at import time; `REPO_ROOT` is `src/` here, so the whole file fails to collect |
 | `tests/engine/test_horizon_lonlat.py` | imports `tests.engine.test_horizon`, a package path that only exists in Penumbra Luna's layout |
 | `tests/engine/test_sites_mazarico_text.py` | compares Penumbra Luna's served results (its `cache/`, not copied) with published text; those tests can only skip here |
-| `tests/engine/test_metrics.py`, `test_elevation_band.py`, `test_synthetic_e2e.py` | import `lss.metrics` (not copied) |
+| `tests/engine/test_metrics.py`, `test_elevation_band.py`, `test_synthetic_e2e.py`, `test_high_elevation.py` | import `lss.metrics` (not copied); `test_high_elevation.py` uses `lss.metrics.core.azimuth_arc` for its zenith-pass tests |
 | `tests/engine/test_regression_c1.py`, `test_regression_c3.py`, `test_validation_c1.py`, `test_validation_c3.py`, `test_validation_horizons.py`, `test_sites.py` | import `lss.contract.examples` or `lss.metrics`, or load Penumbra Luna's `scripts/`, or compare against its served results |
 | `tests/engine/test_horizon_convergence_script.py`, `test_series_checks_script.py`, `test_iau_names.py` | test Penumbra Luna's own scripts, which are not copied |
 | `tests/contract/test_fixtures.py` | tests the app's API contract fixtures (`contract/examples.py`, `contract/export.py`, `fixtures/`) |
@@ -87,15 +100,15 @@ ca10806b1e45f330fbe3fb1c0b58d1580329a284895f2b54feaed2f9eebeb023  datafiles.py
 609e5c7adda21fc8c9e39d5c90625a832101518776501ef1db2a022e9a8f2a3f  ephem/__init__.py
 f660cabc0efc855dfe1e96b4a00305a4ffb509698fce4066b5dd6d62a5b44bc1  ephem/core.py
 b6dc2cddc922041e461697f976ae99da1f8cb9b096322fcea5adef6bff8578d2  horizon/__init__.py
-377cb246eefa66ccdb18afdc67334b574ba56f51638883f92f829181ac36f38c  horizon/cache.py
-a7212f6a5bb6c3153215da60f9f276ce8738e5819d34a90341cc18965a2f2488  horizon/core.py
+a31cd57c58de66ff7c4a579b27b711de1bda595d6695269cd6e3227c3f6d2c77  horizon/cache.py
+ba1aef79cbf37c001f48a7374c3cc4f5a069559d976caefb4958e0b4a47cf461  horizon/core.py
 1bc8174e60df4037312c31d633ddba7a5030a5dc1815bec99bef85b51f646ddd  registry/__init__.py
 0873e6d0ab2c2a6ff9bc3c2ef588a4e134e8f95592cb3b5c0446249c2ec3f07f  registry/datasets.yaml
 6b3bf0659880557fa820205bcf238cd8316caf87d9f2a484db17b7d9dedbeb9c  registry/loader.py
 abf4aad6197c3e76042047c3ad261da3d827f309a5a7cf126ea534039915b839  registry/rois.py
 f6fb50fa498738c4c85476b9b5933e734acdca1321a3e574d928f31a69d59041  registry/sites.py
 b816e2762c2b857ba7e7e653a2177d7b4202424dc5df052707e96f1565c422b2  registry/sites.yaml
-5faabff330e99c80f39adc6acc50f3ad910fedefe157938776234070e4847b1e  registry/terrain.py
+719df26dab2884ab933dec1b4b18f6f9d2b76119031b85971a8dc557a1618ee8  registry/terrain.py
 a19ee0f2212be519dd817412cd00aaccf9f0128f0afc8b25138277a02c2bb737  series/__init__.py
 65548693a1b6f96fb29b73a5d83629cf8c3f9da0edc246caf43e45d1bdfc4eda  series/core.py
 dd809c36698482c535c075e0472075936d6121686e676b67fdf11c1fc2ab6b90  series/disc.py

@@ -29,7 +29,7 @@ Dataset details, citations and terms come from Penumbra Luna's dataset registry 
 
 ## Vendored code
 
-`src/lss/` is Penumbra Luna's illumination engine (Apache-2.0), copied unchanged from commit `aef153a` of https://github.com/kaitlinmoore/nasa-lunar-site-scout. It is never edited here: changes go to Penumbra Luna first and are then copied again. [`src/lss/VENDORED.md`](src/lss/VENDORED.md) records what was copied and left out, and why, plus a SHA-256 manifest that `tests/test_vendored.py` checks. `scripts/fetch_data.py` and the engine tests in `tests/lss/` come from the same commit. The repo as a whole is `MIT AND Apache-2.0`: this project's code is MIT (`LICENSE`), the vendored engine Apache-2.0 (`src/lss/LICENSE`).
+`src/lss/` is Penumbra Luna's illumination engine (Apache-2.0), copied unchanged from commit `9d0c648` of https://github.com/kaitlinmoore/nasa-lunar-site-scout (first copied at `aef153a`; `9d0c648` adds a global-map far field where rays leave the 240 m south polar map). It is never edited here: changes go to Penumbra Luna first and are then copied again. [`src/lss/VENDORED.md`](src/lss/VENDORED.md) records what was copied and left out, and why, plus a SHA-256 manifest that `tests/test_vendored.py` checks. `scripts/fetch_data.py` and the engine tests in `tests/lss/` come from the same commit (the fetch script and most test files are identical at both commits). The repo as a whole is `MIT AND Apache-2.0`: this project's code is MIT (`LICENSE`), the vendored engine Apache-2.0 (`src/lss/LICENSE`).
 
 Sun visibility at one point: `uv run python scripts/illumination_point.py LAT LON` (options: `--height`, `--start`, `--days`, `--out`). It writes one `.npz` outside the repo, by default to `$HOME/data/lunar-thermal-surrogate/derived/`.
 
