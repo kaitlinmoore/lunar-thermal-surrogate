@@ -50,7 +50,7 @@ SYNODIC_MONTH_DAYS = 29.530589
 
 # Where the vendored engine came from, recorded in every output file for provenance.
 ENGINE_SOURCE = (
-    "github.com/kaitlinmoore/nasa-lunar-site-scout@9d0c648 (src/lss, unchanged)"
+    "github.com/kaitlinmoore/nasa-lunar-site-scout@1e45c30 (src/lss, unchanged)"
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

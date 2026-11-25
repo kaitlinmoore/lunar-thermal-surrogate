@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | Source repo | https://github.com/kaitlinmoore/nasa-lunar-site-scout |
-| Source commit | `9d0c648` (`9d0c6482d583e1f6601005b7ce0855b067bef82a`) |
-| Copied | 2026-11-23, from the git blobs at that commit (`git cat-file blob 9d0c648:<path>`), so the bytes match the commit exactly |
-| License | Apache-2.0, kept: `LICENSE` in this folder is Penumbra Luna's `LICENSE` at `9d0c648`, unchanged |
+| Source commit | `1e45c30` (`1e45c30b62081d6153225f54142648a99ac95552`) |
+| Copied | 2026-11-25, from the git blobs at that commit (`git cat-file blob 1e45c30:<path>`), so the bytes match the commit exactly |
+| License | Apache-2.0, kept: `LICENSE` in this folder is Penumbra Luna's `LICENSE` at `1e45c30`, unchanged (identical since the first copy) |
 
 ## Copy history
 
@@ -15,8 +15,18 @@
 |---|---|---|
 | 2026-11-23 | `aef153a` | first copy |
 | 2026-11-23 | `9d0c648` | re-copied `registry/terrain.py`, `horizon/core.py` and `horizon/cache.py`; every other file is identical at both commits (checked file by file against the blobs) |
+| 2026-11-25 | `1e45c30` | re-copied 18 files. Code changed in four: `terrain/slope.py`, `terrain/global_layer.py`, `series/core.py`, `series/__init__.py`. The other 14 changed in wording only: comments, docstrings, pydantic `Field` descriptions (`contract/models.py`) and `DataFile` notes (`datafiles.py`); checked by comparing each file's syntax tree with docstrings removed (and those two kinds of string masked), and the two YAML files parsed. `__init__.py`, `config.py`, `ephem/__init__.py`, `horizon/__init__.py`, `registry/__init__.py`, `registry/rois.py`, `terrain/__init__.py` and `LICENSE` are identical at both commits |
 
-Upstream commits between the two copies:
+Upstream commits from `9d0c648` to `1e45c30` that touch the copied files or tests (none between `9d0c648` and `8089a50` do; `1e45c30` itself changes only the web API, which is not copied):
+
+- `4d10e36`: matched east-west baseline for slope on latitude/longitude grids: the difference spans n = round(1 / cos(lat)) columns each side (`ew_offset_px`; n = 1 below 48.19°, where slopes are bit for bit those of before), so slopes near either pole no longer inflate from the 0.5 m height steps; no slope at the poles. `window(..., extra_cols=...)` and `image_slope_stats` in `terrain/global_layer.py`. Penumbra Luna methodology §5.6.1.
+- `0d2314d`: tests only (docstrings of the full-ray-range and high-elevation tests).
+- `4c86638`: slope with aspect (downhill azimuth, clockwise from north) and east/north gradients on both map types: `slope_aspect`, `slope_aspect_lonlat`, `gradient_ps`, `gradient_lonlat`, `aspect_deg`; the slopes equal `slope_deg` and `slope_deg_lonlat` exactly. Methodology §5.6.2.
+- `dbb7526`: `compute_visibility(..., bodies=...)` computes the Sun or the Earth alone, identical to the same body in a full call; a body left out is `None` in the result, and `SeriesResult.require` raises where a metric needs it. `BODIES` exported from `lss.series`. Methodology §5.5.
+- `1f6aeaa`: `SLOPE_VERSION = 2`.
+- `a43573c`, `926198e`: wording only, in comments, docstrings and descriptions.
+
+Upstream commits from `aef153a` to `9d0c648`:
 
 - `e43690e`: tests only. The whole and hidden disc fractions in `test_series.py::test_fraction_limits_and_half` are compared within 1e-12 instead of exactly (a GitHub-hosted runner gave 4.4e-19).
 - `13f58a1`: the resolver (`registry/terrain.py`). Where 400 km rays leave the 240 m polar map (about 73°S to 60°S, and the map's corners north of 60°S), the map is used out to the distance it holds in every direction (`full_reach_m`, a closed-form cap test) and `LDEM_128` from there to 400 km. Without a global layer the point is refused, with the reason on the new `TerrainStack.reason` field, which `horizon_at` and `cached_horizon` now put in `HorizonUnavailable`.
@@ -60,11 +70,11 @@ No module in the copied set imports any left-out module (checked with grep over 
 
 ## Engine tests and the fetch script
 
-Also copied unchanged from Penumbra Luna, outside this folder (identical at `aef153a` and `9d0c648`; the three engine test files that changed between them were re-copied from `9d0c648`):
+Also copied unchanged from Penumbra Luna, outside this folder. Every copied file is identical to Penumbra Luna at `1e45c30`. At that copy, `test_ephem.py`, `test_global_layer.py`, `test_horizon.py`, `test_sites_apollo.py`, `test_sites_artemis.py`, `test_slope.py`, `test_slope_lonlat.py` and `test_terrain.py` were re-copied, most for wording only; `test_slope_lonlat.py` gained the matched-baseline tests, and `test_aspect.py` is new:
 
 - `scripts/fetch_data.py`: downloads the engine's data into `LSS_DATA_DIR` from the catalog in `lss/datafiles.py`, so this repo can rebuild its data on its own. `--verify` re-hashes local files against `LSS_DATA_DIR/MANIFEST.json`.
 - Engine tests, Penumbra Luna `tests/engine/` → `tests/lss/engine/` and `tests/contract/` → `tests/lss/contract/`:
-  - engine: `test_ephem.py`, `test_global_layer.py`, `test_horizon.py`, `test_series.py`, `test_sites_apollo.py`, `test_sites_artemis.py`, `test_slope.py`, `test_slope_lonlat.py`, `test_terrain.py`, `test_terrain_views.py`
+  - engine: `test_aspect.py`, `test_ephem.py`, `test_global_layer.py`, `test_horizon.py`, `test_series.py`, `test_sites_apollo.py`, `test_sites_artemis.py`, `test_slope.py`, `test_slope_lonlat.py`, `test_terrain.py`, `test_terrain_views.py`
   - contract: `conftest.py`, `test_config.py`, `test_registry.py`
 
 `tests/lss/conftest.py` is this repo's own file. It marks the tests that read `LSS_DATA_DIR` with `data` and deselects six tests by name, with the reason for each written in the file:
@@ -80,7 +90,7 @@ Engine test files left out:
 | `tests/engine/test_datafiles.py` | loads `scripts/fetch_data.py` from `REPO_ROOT` at import time; `REPO_ROOT` is `src/` here, so the whole file fails to collect |
 | `tests/engine/test_horizon_lonlat.py` | imports `tests.engine.test_horizon`, a package path that only exists in Penumbra Luna's layout |
 | `tests/engine/test_sites_mazarico_text.py` | compares Penumbra Luna's served results (its `cache/`, not copied) with published text; those tests can only skip here |
-| `tests/engine/test_metrics.py`, `test_elevation_band.py`, `test_synthetic_e2e.py`, `test_high_elevation.py` | import `lss.metrics` (not copied); `test_high_elevation.py` uses `lss.metrics.core.azimuth_arc` for its zenith-pass tests |
+| `tests/engine/test_metrics.py`, `test_elevation_band.py`, `test_synthetic_e2e.py`, `test_high_elevation.py` | import `lss.metrics` (not copied); `test_high_elevation.py` uses `lss.metrics.core.azimuth_arc` for its zenith-pass tests. `test_metrics.py` also holds upstream's tests of `compute_visibility(..., bodies=...)`; here `tests/test_forcing.py` checks that the Sun-only call equals a full call at two points |
 | `tests/engine/test_regression_c1.py`, `test_regression_c3.py`, `test_validation_c1.py`, `test_validation_c3.py`, `test_validation_horizons.py`, `test_sites.py` | import `lss.contract.examples` or `lss.metrics`, or load Penumbra Luna's `scripts/`, or compare against its served results |
 | `tests/engine/test_horizon_convergence_script.py`, `test_series_checks_script.py`, `test_iau_names.py` | test Penumbra Luna's own scripts, which are not copied |
 | `tests/contract/test_fixtures.py` | tests the app's API contract fixtures (`contract/examples.py`, `contract/export.py`, `fixtures/`) |
@@ -94,27 +104,27 @@ SHA-256 of every copied file (paths relative to `src/lss/`). `tests/test_vendore
 c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4  LICENSE
 0350ccf6bcbfb7811b3ddef6f4ef5867535e83d236829068338eaf38ad2bde65  __init__.py
 f765c47bcce521927b6e56e93a0cf1002ad8de7b34501d854bf7f8156934feaa  config.py
-39c2517200381a0089b948ed8194ff3b7fb2b8129cacfb1d936fd603125763b0  contract/__init__.py
-f178c37c672c6a3f327f99d917298a6a1debff7c11f87f4341a8db6f05d9bbcb  contract/models.py
-ca10806b1e45f330fbe3fb1c0b58d1580329a284895f2b54feaed2f9eebeb023  datafiles.py
+73be7685e75298733987fe46ddb29926af9874a9990fa3d1525bba3779c088c5  contract/__init__.py
+a220b7667a84296d54669f511cdec97915328c0acaaceca4c477e6326a2739cc  contract/models.py
+19a6866d4e16f01ac4e95acd2b3b779da1d57b344669233e59263a9944f07462  datafiles.py
 609e5c7adda21fc8c9e39d5c90625a832101518776501ef1db2a022e9a8f2a3f  ephem/__init__.py
-f660cabc0efc855dfe1e96b4a00305a4ffb509698fce4066b5dd6d62a5b44bc1  ephem/core.py
+d8f8f4c2e5bb7de689e1ae3d05fa6c6f0828fafdd66aebe201b08e5a47c134e5  ephem/core.py
 b6dc2cddc922041e461697f976ae99da1f8cb9b096322fcea5adef6bff8578d2  horizon/__init__.py
-a31cd57c58de66ff7c4a579b27b711de1bda595d6695269cd6e3227c3f6d2c77  horizon/cache.py
-ba1aef79cbf37c001f48a7374c3cc4f5a069559d976caefb4958e0b4a47cf461  horizon/core.py
+fdf2a98e6329093f9d795321b628fc1311c0cce81e4b74ac2d2fe09a4ea83830  horizon/cache.py
+ea64bb1742ac8c94a9c0e2f1ca259d96e9b99d7e990eaf3b9a52fc8879d5d10b  horizon/core.py
 1bc8174e60df4037312c31d633ddba7a5030a5dc1815bec99bef85b51f646ddd  registry/__init__.py
-0873e6d0ab2c2a6ff9bc3c2ef588a4e134e8f95592cb3b5c0446249c2ec3f07f  registry/datasets.yaml
-6b3bf0659880557fa820205bcf238cd8316caf87d9f2a484db17b7d9dedbeb9c  registry/loader.py
+0b80dfce70d4eb8ad0534ec6eb456820d58ba3beea09b43662b33f5b3fadff19  registry/datasets.yaml
+38004a39bb0ad160887ed332d8a52462111d905ae6cb53017727c44fc818a119  registry/loader.py
 abf4aad6197c3e76042047c3ad261da3d827f309a5a7cf126ea534039915b839  registry/rois.py
-f6fb50fa498738c4c85476b9b5933e734acdca1321a3e574d928f31a69d59041  registry/sites.py
-b816e2762c2b857ba7e7e653a2177d7b4202424dc5df052707e96f1565c422b2  registry/sites.yaml
-719df26dab2884ab933dec1b4b18f6f9d2b76119031b85971a8dc557a1618ee8  registry/terrain.py
-a19ee0f2212be519dd817412cd00aaccf9f0128f0afc8b25138277a02c2bb737  series/__init__.py
-65548693a1b6f96fb29b73a5d83629cf8c3f9da0edc246caf43e45d1bdfc4eda  series/core.py
-dd809c36698482c535c075e0472075936d6121686e676b67fdf11c1fc2ab6b90  series/disc.py
+19baeb94bddba8f909c6b480499054ce11d622a7d4b52871af7ea796019adea2  registry/sites.py
+900fee9a0d1f92e9d7c68563e68e3d6a37048d3c639aae02ff0c575ecbc013a6  registry/sites.yaml
+432a28c8e5c2261e2e59780b0f1dabde9139de021331baa2372945956f0cc0cf  registry/terrain.py
+f2afa7c67839dd7a95264e096e64a1c1c1d7adf2f70e313c4f2b80b9bd5ff196  series/__init__.py
+85d0bd016738666898d5f9bd96c1a850584abd0fc3c77d9803de7fa7d8f5458a  series/core.py
+d22357572ffd1b7dfa0cfbdd22e0547e23c9f7a64b2c14743cfc29c9c11cbaa8  series/disc.py
 3ed362d23b6819002cce88df4f97068532f5581cfab89a28cb75238c692991df  terrain/__init__.py
-cddddf9d32f641839f73ad1fa237f2d064f0d26018fe96c57a15e0d78567f0b4  terrain/core.py
-11083501c6f63e1a17191107a25ad3d477c5b2ae261e66c1552c82bebbde96b2  terrain/global_layer.py
-8b91de4709930bd68359355dc01c81fffef8b689203937180ea1c428927519ff  terrain/slope.py
-a265913fb053070b99ad624887886129296ce7060a4b5f89e62e2541af72dda0  terrain/views.py
+0cc889f1fe79b93537ad19bdbb27f05a5fecfaa9c43a821b3a8f8f469d64f076  terrain/core.py
+7ee9a9b58437abde3ccdd9fb0824f278463019cc4e4b06a36461b2be1c0231e2  terrain/global_layer.py
+f883ce377e32cc7908770f44fb438c532372a336ed13782920bd463d83ab1289  terrain/slope.py
+3339eba0c9ee05333d02eb7b9856348227b40ff0bf0eaf2ee09051d047dbf568  terrain/views.py
 ```
