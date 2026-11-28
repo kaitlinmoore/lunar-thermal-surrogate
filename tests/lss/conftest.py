@@ -1,6 +1,6 @@
 """Penumbra Luna's engine tests, run against the vendored copy in src/lss.
 
-The test files under tests/lss/ are copied unchanged from Penumbra Luna at commit 9d0c648
+The test files under tests/lss/ are copied unchanged from Penumbra Luna at commit 1e45c30
 (tests/engine/ -> tests/lss/engine/, tests/contract/ -> tests/lss/contract/), so they can be
 re-copied whenever the engine is. This file is the only addition, and it is the only place that
 adapts them to this repo. It does two things at collection time, by test name:

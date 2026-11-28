@@ -15,7 +15,8 @@ doi:10.1002/2017JE005387, Eqs. A8-A11 and Table A1)::
   vendored engine (`lss.ephem.topocentric`). It differs from the Sun-Moon
   centre distance by at most the lunar radius, 1.2e-5 of 1 AU.
 * ``f``: the visible, limb-darkened fraction of the solar disc over the real
-  terrain horizon, from the engine (`lss.series.compute_visibility`). This
+  terrain horizon, from the engine (`lss.series.compute_visibility`, for the
+  Sun alone: ``bodies=("SUN",)``, identical to the Sun of a full call). This
   module does not compute visibility.
 * ``i``: the angle between the Sun's direction (disc centre) and the normal
   of the local ground facet, from the point's slope and aspect.
@@ -40,17 +41,18 @@ Conventions (the engine's, `lss.ephem.core`; tested in `tests/test_forcing.py`):
   Aspect is the azimuth the facet faces: the downhill direction. On a
   southern-hemisphere point an equator-facing slope has aspect 0 (north).
 
-Slope and aspect come from the near-field terrain layer that the engine's
-resolver (`lss.registry.terrain.resolve`) picks for the point, by the engine's
-slope definition (`lss.terrain.slope`): central differences over the pixel
-containing the point and its four neighbours, so the baseline is two pixels
-in each direction (160 m on the 80 m polar map, 480 m on the 240 m map, and
-474 m north-south by 474 cos(lat) m east-west on the 237 m global map). The
-engine returns the slope only, not its direction, so the gradient is computed
-here with the same differences and then rotated into the local east-north
-frame. The slope from that gradient matches the engine's own function to
-rounding (checked on every call, and against the engine's `slope_stats` in
-the data tests).
+Slope and aspect come from the engine (`lss.terrain.slope`, ``SLOPE_VERSION``
+2), on the near-field terrain layer that its resolver
+(`lss.registry.terrain.resolve`) picks for the point: `slope_aspect` on the
+polar stereographic maps and `slope_aspect_lonlat` on the global map. Both
+take central differences over the pixel containing the point. On a polar map
+the baseline is two pixels in each direction (160 m on the 80 m map, 480 m
+on the 240 m map). On the 237 m global map it is 474 m north-south and a
+matched east-west baseline of ``2 n`` pixels, ``n = round(1 / cos(lat))``
+(``n = 1`` below 48.19 deg), so slopes don't inflate near the poles. This
+module only reads the pixels and applies two conventions: aspect 0 on a flat
+facet (the engine gives NaN there), and a `ValueError` where the engine gives
+no slope (on the global map, within 0.0081 deg, 246 m, of either pole).
 
 Sampling: ``n_samples`` uniform samples over one period, ``t_k = k T / n``
 for ``k = 0 .. n - 1`` (no duplicated endpoint). The engine evaluates the Sun
@@ -84,8 +86,16 @@ from lss.horizon import HorizonParams
 from lss.horizon.cache import cache_path, key_spec
 from lss.registry.terrain import LAYERS, GlobalLayerSpec, LayerSpec, resolve
 from lss.series import SeriesParams, compute_visibility
-from lss.terrain.core import ps_from_latlon
-from lss.terrain.slope import scale_factor, slope_deg, slope_deg_lonlat
+from lss.terrain.core import LonLatGrid, ps_from_latlon
+from lss.terrain.global_layer import LDEM_128, window
+from lss.terrain.slope import (
+    ew_offset_px,
+    scale_factor,
+    slope_aspect,
+    slope_aspect_lonlat,
+    slope_deg,
+    slope_deg_lonlat,
+)
 
 #: Solar constant at 1 AU, W m^-2 (Hayne et al. 2017 Table A1; Kopp and Lean 2011).
 SOLAR_CONSTANT = 1361.0
@@ -109,7 +119,7 @@ DEFAULT_SAMPLES = round(SYNODIC_MONTH_S / 3600.0)
 
 #: Where the vendored engine came from (src/lss/VENDORED.md).
 ENGINE_SOURCE = (
-    "github.com/kaitlinmoore/nasa-lunar-site-scout@9d0c648 (src/lss, unchanged)"
+    "github.com/kaitlinmoore/nasa-lunar-site-scout@1e45c30 (src/lss, unchanged)"
 )
 
 
@@ -201,19 +211,23 @@ class Facet:
         slope_deg: Angle between the facet and the horizontal plane.
         aspect_deg: Azimuth the facet faces (downhill), clockwise from north;
             0 when the slope is 0.
-        source: ``"terrain"`` (computed here from the near-field DEM) or
-            ``"supplied"`` (given by the caller).
+        source: ``"terrain"`` (the engine's slope and aspect on the
+            near-field DEM) or ``"supplied"`` (given by the caller).
         layer: Near-field layer label, e.g. ``"80 m polar map"``; empty when
             supplied.
         file_id: The layer's data-file id (`lss.datafiles`); empty when
             supplied.
         resolution_m: The layer's pixel size, m (north-south on the global
             map); NaN when supplied.
-        baseline_m: Ground distance the central differences span, (east-west,
-            north-south) in m: two pixels each way. NaN when supplied.
-        engine_slope_deg: The engine's own slope (`lss.terrain.slope`) for
-            the same pixel; equal to ``slope_deg`` to rounding. NaN when
-            supplied.
+        baseline_m: Ground distance the engine's differences span at the
+            point's pixel, (east-west, north-south) in m. Two pixels each way
+            on a polar map; on the global map 2 R dphi north-south and
+            2 n R cos(lat) dlambda east-west, with the engine's matched
+            offset n. NaN when supplied.
+        engine_slope_deg: The engine's slope-only function
+            (`lss.terrain.slope.slope_deg` or `slope_deg_lonlat`) on the same
+            pixel; equal to ``slope_deg`` exactly (checked on every call).
+            NaN when supplied.
     """
 
     slope_deg: float
@@ -226,115 +240,151 @@ class Facet:
     engine_slope_deg: float = math.nan
 
 
-def facet_from_gradient(dz_de: float, dz_dn: float) -> tuple[float, float]:
-    """(slope, aspect) in degrees from the height gradient along east and north.
+def _conventions(slope: float, aspect: float, where: str) -> tuple[float, float]:
+    """Apply this module's conventions to the engine's slope and aspect.
 
-    The surface z(E, N) has upward normal proportional to (-dz/dE, -dz/dN, 1),
-    so the slope is atan(|grad z|) and the facet faces the downhill direction
-    -grad z, at azimuth atan2(-dz/dE, -dz/dN) clockwise from north.
+    The engine gives NaN aspect on a flat pixel; here a flat facet has
+    aspect 0. NaN slope (no slope from the engine) or NaN aspect on a sloped
+    pixel (a polar map pixel centred on the pole) raises ValueError.
     """
-    slope = math.degrees(math.atan(math.hypot(dz_de, dz_dn)))
-    aspect = math.degrees(math.atan2(-dz_de, -dz_dn)) % 360.0
+    if math.isnan(slope):
+        raise ValueError(
+            f"no slope at {where}: the engine's differences need neighbours "
+            "outside the terrain read (lss.terrain.slope)"
+        )
+    if math.isnan(aspect):
+        if slope == 0.0:
+            return 0.0, 0.0
+        raise ValueError(
+            f"no aspect at {where}: east and north are undefined at the pole "
+            "(lss.terrain.slope)"
+        )
     return slope, aspect
 
 
-def ps_gradient_to_en(
-    gx: float, gy: float, lon_deg: float, pole: str
-) -> tuple[float, float]:
-    """Rotate a height gradient from polar stereographic map axes to east-north.
-
-    South: x = rho sin(lon), y = rho cos(lon), rho growing northward, so the
-    map's +x axis points cos(lon) east + sin(lon) north and +y points
-    -sin(lon) east + cos(lon) north. North: x = rho sin(lon),
-    y = -rho cos(lon), rho growing southward, so +x is cos(lon) east -
-    sin(lon) north and +y is sin(lon) east + cos(lon) north. A gradient's
-    components transform like a displacement's: dz/dE = gx (x.E) + gy (y.E).
-    At a pole the engine's east-north frame is fixed by the given longitude
-    (`lss.ephem.enu_basis`); these formulas use the same longitude, so they
-    stay consistent there.
-    """
-    c, s = math.cos(math.radians(lon_deg)), math.sin(math.radians(lon_deg))
-    if pole == "south":
-        return gx * c - gy * s, gx * s + gy * c
-    if pole == "north":
-        return gx * c + gy * s, -gx * s + gy * c
-    raise ValueError("pole must be 'south' or 'north'")
-
-
 def _ps_facet(
-    z3: NDArray[np.float64], x_c: float, y_c: float, res: float, pole: str, lon: float
+    z3: NDArray[np.float64], x_c: float, y_c: float, res: float, pole: str
 ) -> tuple[float, float, float, tuple[float, float]]:
-    """Facet from a 3x3 polar stereographic window centred on the point's pixel.
+    """Engine facet on a 3x3 polar stereographic window centred on the point's pixel.
 
-    ``z3`` rows run north-to-south in map y (row 0 is the largest y), columns
-    west-to-east in map x; ``(x_c, y_c)`` is the centre pixel's centre. Returns
-    (slope, aspect, engine slope, baseline).
+    ``z3`` rows run down the map (row 0 is the largest y), columns along +x,
+    as the GeoTIFF stores them; ``(x_c, y_c)`` is the centre pixel's centre.
+    Slope and aspect are `lss.terrain.slope.slope_aspect` (east and north at
+    the pixel's own position); the engine slope is `slope_deg` with the
+    scale factor at that position. Returns (slope, aspect, engine slope,
+    baseline) with the engine's NaN conventions; `_conventions` applies this
+    module's.
     """
-    k = float(scale_factor(x_c, y_c))  # map distance / ground distance
-    ground = res / k
-    gx = (z3[1, 2] - z3[1, 0]) / (2.0 * ground)
-    gy = (z3[0, 1] - z3[2, 1]) / (2.0 * ground)  # row 0 is up-map (+y)
-    slope, aspect = facet_from_gradient(*ps_gradient_to_en(gx, gy, lon, pole))
+    s, a = slope_aspect(z3, res, np.array([[x_c]]), np.array([[y_c]]), pole)
+    k = float(scale_factor(x_c, y_c))
     engine = float(slope_deg(z3, res, k)[0, 0])
-    return slope, aspect, engine, (2.0 * ground, 2.0 * ground)
+    ground = 2.0 * res / k  # the engine's baseline: two pixels, map step / k
+    return float(s[0, 0]), float(a[0, 0]), engine, (ground, ground)
 
 
 def _lonlat_facet(
-    z3: NDArray[np.float64], row_lats_deg: NDArray[np.float64], res_deg: float
+    image: ArrayLike, lat: float, lon: float, radius_m: float, label: str
 ) -> tuple[float, float, float, tuple[float, float]]:
-    """Facet from a 3x3 latitude/longitude window centred on the point's pixel.
+    """Engine facet at (lat, lon) on a simple-cylindrical image (LDEM_128 geometry).
 
-    Rows run north to south, columns west to east; ``row_lats_deg`` are the
-    three rows' centre latitudes. Ground steps on the 1737.4 km sphere, as
-    `lss.terrain.slope.slope_deg_lonlat`: R dphi north-south and
-    R cos(lat) dlambda east-west at the centre row.
+    Reads a window around the point with `lss.terrain.global_layer.window`,
+    widened east and west by the engine's matched offset
+    (`lss.terrain.slope.ew_offset_px`) at the most poleward latitude the
+    point's pixel row can have, then hands it to `_lonlat_grid_facet`.
+    ``image`` is anything `window` reads: the memory-mapped LDEM_128 image,
+    or a synthetic array of the same shape in tests.
+
+    Raises:
+        ValueError: The window would span every longitude: the engine
+            refuses such windows, since east and north are undefined at the
+            pole. With a one-pixel radius that is within 0.0081 deg (246 m)
+            of either pole: the pole row (1/128 deg), where the engine has no
+            slope, plus about 10 m. Also as `_lonlat_grid_facet`.
     """
-    step_ns = math.radians(res_deg) * MOON_RADIUS_M
-    step_ew = step_ns * math.cos(math.radians(float(row_lats_deg[1])))
-    dz_de = (z3[1, 2] - z3[1, 0]) / (2.0 * step_ew)
-    dz_dn = (z3[0, 1] - z3[2, 1]) / (2.0 * step_ns)
-    slope, aspect = facet_from_gradient(dz_de, dz_dn)
-    engine = float(slope_deg_lonlat(z3, res_deg, row_lats_deg)[0, 0])
-    return slope, aspect, engine, (2.0 * step_ew, 2.0 * step_ns)
+    half_px = 0.5 / LDEM_128.ppd
+    n = int(min(ew_offset_px(min(abs(lat) + half_px, 90.0)), LDEM_128.samples))
+    g = window(image, lat, lon, radius_m, LDEM_128, extra_cols=n - 1)
+    if g.wrap:
+        raise ValueError(
+            f"no slope at ({lat}, {lon}) on {label}: too close to the pole, where "
+            "the window spans every longitude; the engine refuses there, since east "
+            "and north are undefined at the pole (lss.terrain.slope)"
+        )
+    return _lonlat_grid_facet(g, lat, lon, label)
+
+
+def _lonlat_grid_facet(
+    g: LonLatGrid, lat: float, lon: float, label: str
+) -> tuple[float, float, float, tuple[float, float]]:
+    """Engine facet of the pixel of ``g`` (a `LonLatGrid`) that contains (lat, lon).
+
+    Slope and aspect are `lss.terrain.slope.slope_aspect_lonlat` on the three
+    rows around the pixel, and the engine slope is `slope_deg_lonlat` on the
+    same rows. Returns (slope, aspect, engine slope, baseline) with the
+    engine's NaN conventions (`_conventions` applies this module's).
+
+    Raises:
+        ValueError: The pixel has no neighbour row in ``g``, or no data within
+            the engine's east-west offset.
+    """
+    where = f"({lat}, {lon}) on {label}"
+    r = math.floor((g.lat0 - lat) / g.res_deg)
+    c = math.floor(((lon - g.lon0) % 360.0) / g.res_deg)
+    z = np.asarray(g.array, dtype=np.float64)
+    if not (1 <= r < z.shape[0] - 1 and 1 <= c < z.shape[1] - 1):
+        raise ValueError(
+            f"no slope at {where}: the pixel has no neighbour on every side"
+        )
+    lats = g.lat0 - (np.arange(r - 1, r + 2) + 0.5) * g.res_deg
+    n = int(ew_offset_px(lats[1]))
+    z3 = z[r - 1 : r + 2, :]
+    if np.isnan(z3[:, max(c - n, 0) : c + n + 1]).any():
+        raise ValueError(f"no terrain data around {where}")
+    s, a = slope_aspect_lonlat(z3, g.res_deg, lats)
+    engine = float(slope_deg_lonlat(z3, g.res_deg, lats)[0, c - 1])
+    step = math.radians(g.res_deg) * MOON_RADIUS_M
+    baseline = (2.0 * n * step * math.cos(math.radians(lats[1])), 2.0 * step)
+    return float(s[0, c - 1]), float(a[0, c - 1]), engine, baseline
 
 
 def terrain_facet(lat: float, lon: float, spec: LayerSpec) -> Facet:
-    """Slope and aspect at (lat, lon) from terrain layer ``spec``.
+    """Slope and aspect at (lat, lon) from terrain layer ``spec``, by the engine.
 
-    Uses the pixel containing the point and its four neighbours (the engine's
-    "slope at the point"). Reads only that window: a 3x3 block of the polar
-    GeoTIFF, or a small window of the memory-mapped LDEM_128 image.
+    The engine's slope at the point: the pixel containing the point, by
+    central differences with its neighbours (`lss.terrain.slope`,
+    ``SLOPE_VERSION`` 2). Reads only what that needs: a 3x3 block of a polar
+    GeoTIFF, or a small window of the memory-mapped LDEM_128 image, widened
+    for the matched east-west offset.
 
-    On the global map the east-west step is 474 cos(lat) m. North of about
-    88 N it is a few metres, and the map's 0.5 m height steps inflate the
-    slope (docs/methodology.md, "Forcing"); the definition is still the
-    engine's there.
+    On a polar map the baseline is two pixels each way. On the global map it
+    is 474 m north-south and, east-west, ``2 n`` pixels with
+    ``n = round(1 / cos(lat))`` (1 below 48.19 deg), so it stays between 2/3
+    and 4/3 of the north-south one up to the poles.
 
     Raises:
-        ValueError: The pixel or a neighbour has no data, lies on the map's
-            edge, or (global map) the window would contain a pole, where
-            east-west steps vanish.
+        ValueError: The pixel or a neighbour has no data or lies on the
+            map's edge, or the engine gives no slope there: on the global map
+            within 0.0081 deg (246 m) of either pole (see
+            `_lonlat_facet`; docs/methodology.md, "Forcing"). With the
+            default layers only the north pole is affected: no polar map
+            covers it, while the south pole lies on the 80 m map, whose
+            pixel centres are never on the pole, so the engine gives a slope
+            and aspect there.
+
+    On a polar map the engine turns the map gradient into east and north at
+    the pixel's centre, so the aspect is in that pixel's frame. It differs
+    from the point's own frame (in which the Sun's azimuth is computed) by
+    the angle the two subtend at the pole: 0.015 deg at 85 S 90 E, about
+    3 deg within 1 km of the pole on the 80 m map.
     """
     if isinstance(spec, GlobalLayerSpec):
-        from lss.terrain.global_layer import open_image, window
+        from lss.terrain.global_layer import open_image
 
         img = open_image(datafile(spec.file_id).path, datafile(spec.label_file_id).path)
-        # A few pixels around the point; `window` adds its own 2-pixel margin.
-        g = window(img, lat, lon, 2.0 * spec.resolution_m)
-        if g.wrap:
-            raise ValueError(
-                f"({lat}, {lon}) is too close to a pole for a slope on the global map"
-            )
-        r = math.floor((g.lat0 - lat) / g.res_deg)
-        c = math.floor(((lon - g.lon0) % 360.0) / g.res_deg)
-        z = np.asarray(g.array, dtype=np.float64)
-        if not (1 <= r < z.shape[0] - 1 and 1 <= c < z.shape[1] - 1):
-            raise ValueError("the point's pixel has no neighbour on every side")
-        z3 = z[r - 1 : r + 2, c - 1 : c + 2]
-        lats = g.lat0 - (np.arange(r - 1, r + 2) + 0.5) * g.res_deg
-        if np.isnan(z3).any():
-            raise ValueError(f"no terrain data around ({lat}, {lon}) on {spec.label}")
-        slope, aspect, engine, baseline = _lonlat_facet(z3, lats, g.res_deg)
+        # One pixel around the point; `window` adds its own 2-pixel margin.
+        slope, aspect, engine, baseline = _lonlat_facet(
+            img, lat, lon, float(spec.resolution_m), spec.label
+        )
     else:
         import rasterio
         from rasterio.windows import Window
@@ -355,11 +405,12 @@ def terrain_facet(lat: float, lon: float, spec: LayerSpec) -> Facet:
             raise ValueError(f"no terrain data around ({lat}, {lon}) on {spec.label}")
         x_c = m["x0"] + (c + 0.5) * m["res"]
         y_c = m["y0"] - (r + 0.5) * m["res"]
-        slope, aspect, engine, baseline = _ps_facet(
-            z3, x_c, y_c, m["res"], spec.pole, lon
+        slope, aspect, engine, baseline = _ps_facet(z3, x_c, y_c, m["res"], spec.pole)
+    slope, aspect = _conventions(slope, aspect, f"({lat}, {lon}) on {spec.label}")
+    if slope != engine:
+        raise RuntimeError(
+            f"engine slope_aspect gives {slope} deg, its slope-only function {engine} deg"
         )
-    if not math.isclose(slope, engine, rel_tol=1e-9, abs_tol=1e-9):
-        raise RuntimeError(f"slope {slope} deg differs from the engine's {engine} deg")
     return Facet(
         slope_deg=slope,
         aspect_deg=aspect,
@@ -568,9 +619,10 @@ def compute_forcing(
         and cache_path(key_spec(lat, lon, height_m, hparams, stack)).is_file()
     )
 
-    # Visibility: the engine's own entry point. Its internal grid is set to
-    # the sample step, so its samples fall exactly on t_s plus the endpoint
-    # (t = period), which is dropped. The Earth is computed and discarded.
+    # Visibility: the engine's own entry point, for the Sun alone (the Earth
+    # is not computed; the Sun is identical to a full call's). Its internal
+    # grid is set to the sample step, so its samples fall exactly on t_s plus
+    # the endpoint (t = period), which is dropped.
     t0 = time.perf_counter()
     res = compute_visibility(
         lat,
@@ -581,6 +633,7 @@ def compute_forcing(
         SeriesParams(grid_step_s=dt),
         hparams,
         layers,
+        bodies=("SUN",),
     )
     t1 = time.perf_counter()
     g = res.sun.grid

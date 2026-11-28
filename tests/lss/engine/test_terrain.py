@@ -134,7 +134,7 @@ def test_resolver_polar_maps_only_and_unsupported():
     s70 = reg.resolve(-70.0, 30.0)  # it does not: the global layer beyond its full reach
     assert [sl.spec.dataset_id for sl in s70.layers] == ["pgda_90_south_pole_dems", "lola_ldem_128"]
     assert s70.fidelity().tier == FidelityTier.low
-    for lat, lon in [(0.0, 0.0), (45.0, 10.0), (89.0, 0.0)]:  # off the polar maps: the global layer (C7)
+    for lat, lon in [(0.0, 0.0), (45.0, 10.0), (89.0, 0.0)]:  # off the polar maps: the global layer
         s = reg.resolve(lat, lon)
         assert [sl.spec.dataset_id for sl in s.layers] == ["lola_ldem_128"]
         assert s.fidelity().tier == FidelityTier.low
@@ -176,7 +176,7 @@ def test_full_reach_at_the_pole_and_off_the_map():
 
 @pytest.mark.parametrize("lat", [-70.0, -65.0, -61.0])
 def test_resolver_global_far_field_where_rays_leave_the_polar_maps(lat):
-    """Handoff 14 item 1: between about 73 S and 60 S, 400 km rays leave the 240 m map. The map is used out
+    """Between about 73 S and 60 S, 400 km rays leave the 240 m map. The map is used out
     to the distance it holds in every direction, then the global layer to the maximum range."""
     st = reg.resolve(lat, 0.0)
     reach = reg.full_reach_m(reg.POLAR_240M, lat, 0.0, reg.MAX_RANGE_M)

@@ -3,15 +3,17 @@
 Two kinds:
 
 * Pure tests (run everywhere, including CI): Eq. A8, the incidence and
-  azimuth/aspect conventions, the flux formula's zeros, sample times, and the
-  slope/aspect geometry on synthetic tilted planes in each map projection.
+  azimuth/aspect conventions, the flux formula's zeros, sample times, the
+  engine's slope and aspect read through this module on synthetic tilted
+  planes in each map projection (including the matched east-west baseline
+  near the north pole), and the refusal at the poles on the global map.
 * `data` tests (need SPICE kernels and DEMs under LSS_DATA_DIR; skipped
   without them): the Sun distance over a year, a flat surface under a zero
   horizon against an independent SPICE evaluation, the aspect convention with
   real ephemerides, zeros and the solver contract on real terrain, the visible
-  fraction against `compute_visibility`, and the slope against the engine's
-  own slope statistics, at the two demonstration points (85 S 90 E and
-  5 N 60 W).
+  fraction against `compute_visibility`, the Sun-only call against a full
+  one, and the slope against the engine's own slope statistics, at the two
+  demonstration points (85 S 90 E and 5 N 60 W).
 
 Every location used here is checked to lie at least 50 km from all 23
 held-out sites (`test_locations_are_away_from_the_sites`); no test reads a
@@ -38,7 +40,6 @@ from lunar_thermal.forcing import (
     albedo_eq_a8,
     compute_forcing,
     cos_incidence,
-    facet_from_gradient,
     sample_times,
 )
 
@@ -153,15 +154,16 @@ def test_azimuth_is_clockwise_from_north():
     )
 
 
-def test_facet_from_gradient_faces_downhill():
-    """Ground rising to the east faces west (aspect 270); rising to the north faces
-    south (180); 45 deg slope from unit gradient. Tolerance 1e-12."""
-    s, a = facet_from_gradient(1.0, 0.0)
-    assert (s, a) == pytest.approx((45.0, 270.0), abs=1e-12)
-    s, a = facet_from_gradient(0.0, 1.0)
-    assert (s, a) == pytest.approx((45.0, 180.0), abs=1e-12)
-    s, a = facet_from_gradient(0.0, -0.1)
-    assert a == pytest.approx(0.0, abs=1e-12)
+def test_flat_facet_and_missing_slope_conventions():
+    """The engine's NaN aspect on a flat pixel becomes aspect 0; NaN slope, or NaN
+    aspect on a sloped pixel (a polar pixel centred on the pole), raise ValueError;
+    anything else passes through unchanged (exact)."""
+    assert fm._conventions(0.0, math.nan, "here") == (0.0, 0.0)
+    assert fm._conventions(3.5, 271.25, "here") == (3.5, 271.25)
+    with pytest.raises(ValueError, match="no slope at here"):
+        fm._conventions(math.nan, math.nan, "here")
+    with pytest.raises(ValueError, match="undefined at the pole"):
+        fm._conventions(2.0, math.nan, "here")
 
 
 # --------------------------------------------------------------------------- flux formula
@@ -237,7 +239,10 @@ def _local_en(lat0, lon0, lat, lon):
 @pytest.mark.parametrize("aspect", [0.0, 90.0, 225.0])
 def test_polar_stereographic_facet_on_a_tilted_plane(pole, lon, aspect):
     """A known plane sampled on a 3x3 polar stereographic window (80 m pixels) at
-    85 deg latitude recovers its slope and aspect. Tolerance 0.01 deg."""
+    85 deg latitude, defined in the tangent frame of the centre pixel's centre,
+    recovers its slope and aspect through the engine's `slope_aspect`, whose slope
+    equals its `slope_deg` exactly. Tolerance 0.01 deg; baseline two pixels over
+    the scale factor (within 0.5%)."""
     from lss.terrain.core import latlon_from_ps, ps_from_latlon
 
     lat = -85.0 if pole == "south" else 85.0
@@ -249,27 +254,99 @@ def test_polar_stereographic_facet_on_a_tilted_plane(pole, lon, aspect):
         for j, dx in enumerate((-res, 0.0, res)):
             la, lo = (float(v) for v in latlon_from_ps(x_c + dx, y_c + dy, pole))
             z3[i, j] = _plane(*_local_en(lat_c, lon_c, la, lo), slope, aspect)
-    s, a, engine, _ = fm._ps_facet(z3, x_c, y_c, res, pole, lon_c)
+    s, a, engine, base = fm._ps_facet(z3, x_c, y_c, res, pole)
     assert s == pytest.approx(slope, abs=0.01)
-    assert engine == pytest.approx(s, abs=1e-9)
+    assert engine == s
+    assert base[0] == base[1] == pytest.approx(2.0 * res, rel=0.005)
     assert (a - aspect + 180.0) % 360.0 - 180.0 == pytest.approx(0.0, abs=0.01)
 
 
-@pytest.mark.parametrize("lat", [-60.0, 5.0, 75.0])
+def _lonlat_patch(lat, lon, slope, aspect, res_deg=1.0 / 128.0):
+    """A LonLatGrid of three rows centred on (lat, lon), wide enough for the
+    engine's matched east-west offset, holding a plane defined in the tangent
+    frame at (lat, lon)."""
+    from lss.terrain.core import LonLatGrid
+    from lss.terrain.slope import ew_offset_px
+
+    half = int(ew_offset_px(lat)) + 2
+    lats = lat + res_deg * np.array([1.0, 0.0, -1.0])  # rows north to south
+    lons = lon + res_deg * np.arange(-half, half + 1)
+    z = np.array(
+        [
+            [_plane(*_local_en(lat, lon, la, lo), slope, aspect) for lo in lons]
+            for la in lats
+        ]
+    )
+    g = LonLatGrid(z, lon - (half + 0.5) * res_deg, lat + 1.5 * res_deg, res_deg, 236.9)
+    return g, half
+
+
+@pytest.mark.parametrize("lat", [-60.0, 5.0, 75.0, 85.0, 89.0])
 @pytest.mark.parametrize("aspect", [0.0, 135.0, 270.0])
 def test_lonlat_facet_on_a_tilted_plane(lat, aspect):
-    """A known plane on a 3x3 latitude/longitude window (1/128 deg pixels) recovers
-    its slope and aspect. Tolerance 0.01 deg."""
-    res_deg, slope, lon = 1.0 / 128.0, 8.0, 123.0
-    lats = np.array([lat + res_deg, lat, lat - res_deg])  # rows north to south
-    z3 = np.empty((3, 3))
-    for i, la in enumerate(lats):
-        for j, lo in enumerate((lon - res_deg, lon, lon + res_deg)):
-            z3[i, j] = _plane(*_local_en(lat, lon, la, lo), slope, aspect)
-    s, a, engine, _ = fm._lonlat_facet(z3, lats, res_deg)
-    assert s == pytest.approx(slope, abs=0.01)
-    assert engine == pytest.approx(s, abs=1e-9)
-    assert (a - aspect + 180.0) % 360.0 - 180.0 == pytest.approx(0.0, abs=0.01)
+    """A known plane on a latitude/longitude grid (1/128 deg pixels) recovers its
+    slope and aspect through the engine's `slope_aspect_lonlat`, whose slope equals
+    `slope_deg_lonlat` exactly. Tolerance 0.01 deg (slope) and 0.05 deg (aspect,
+    the engine's own test tolerance on these grids). The east-west baseline is the
+    engine's matched one: 2 n pixels, within 2/3 to 4/3 of the north-south one
+    (1e-9 relative)."""
+    from lss.terrain.slope import ew_offset_px
+
+    g, _ = _lonlat_patch(lat, 123.0, 8.0, aspect)
+    s, a, engine, (b_ew, b_ns) = fm._lonlat_grid_facet(g, lat, 123.0, "test grid")
+    assert s == pytest.approx(8.0, abs=0.01)
+    assert engine == s
+    assert (a - aspect + 180.0) % 360.0 - 180.0 == pytest.approx(0.0, abs=0.05)
+    step = math.radians(1.0 / 128.0) * 1_737_400.0
+    n = int(ew_offset_px(lat))
+    assert b_ns == pytest.approx(2.0 * step, rel=1e-9)
+    assert b_ew == pytest.approx(2.0 * n * step * math.cos(math.radians(lat)), rel=1e-9)
+    assert 2.0 / 3.0 - 1e-9 <= b_ew / b_ns <= 4.0 / 3.0 + 1e-9
+
+
+def test_lonlat_facet_flat_and_too_narrow():
+    """A flat patch has slope 0 and aspect 0 (after the conventions); a grid without
+    the matched east-west neighbours gives no slope (exact)."""
+    from lss.terrain.core import LonLatGrid
+
+    g, half = _lonlat_patch(85.0, 10.0, 0.0, 0.0)
+    s, a, _, _ = fm._lonlat_grid_facet(g, 85.0, 10.0, "flat")
+    assert s == 0.0 and math.isnan(a)
+    assert fm._conventions(s, a, "flat") == (0.0, 0.0)
+    g, half = _lonlat_patch(85.0, 10.0, 5.0, 90.0)  # n = 11 at 85 deg
+    narrow = LonLatGrid(
+        g.array[:, half - 3 : half + 4],
+        10.0 - 3.5 * g.res_deg,
+        g.lat0,
+        g.res_deg,
+        g.res,
+    )
+    s, _, _, _ = fm._lonlat_grid_facet(narrow, 85.0, 10.0, "narrow")
+    assert math.isnan(s)
+    with pytest.raises(ValueError, match="no slope"):
+        fm._conventions(s, math.nan, "narrow")
+
+
+@pytest.mark.parametrize("sign", [1.0, -1.0])
+@pytest.mark.parametrize("lon", [0.0, 123.4, -90.0])
+def test_global_map_refuses_within_0_0081_deg_of_a_pole(sign, lon):
+    """On an image of LDEM_128's geometry (flat, synthetic: no data needed), the
+    facet is refused within 0.0081 deg (about 246 m) of either pole: the pole row
+    (1/128 deg), where the engine has no slope, plus about 10 m where the window
+    would span every longitude. It is given (flat: slope 0) at 0.0082 deg and
+    0.01 deg, where the engine's east-west offset is about 7,000 and 5,700
+    pixels (exact)."""
+    from lss.terrain.global_layer import LDEM_128
+
+    img = np.broadcast_to(np.int16(0), (LDEM_128.lines, LDEM_128.samples))
+    for d in (0.0, 0.004, 0.0078, 0.0081):
+        with pytest.raises(ValueError, match="too close to the pole"):
+            fm._lonlat_facet(img, sign * (90.0 - d), lon, 236.901, "flat image")
+    for d in (0.0082, 0.01):
+        s, a, _, _ = fm._lonlat_facet(
+            img, sign * (90.0 - d), lon, 236.901, "flat image"
+        )
+        assert s == 0.0 and math.isnan(a)
 
 
 # --------------------------------------------------------------------------- data tests
@@ -455,6 +532,41 @@ def test_visible_fraction_matches_compute_visibility(demo):
 
 
 @pytest.mark.data
+def test_sun_only_call_matches_a_full_call(demo, monkeypatch):
+    """compute_forcing asks the engine for the Sun alone (bodies=("SUN",)). Forced
+    through a full call instead (both bodies), every per-sample array and the
+    facet are identical (exact)."""
+    import lss.series
+
+    seen = {}
+
+    def full(*args, **kwargs):
+        seen["bodies"] = kwargs.pop("bodies", None)
+        res = lss.series.compute_visibility(*args, **kwargs)
+        assert res.sun is not None and res.earth is not None
+        return res
+
+    monkeypatch.setattr(fm, "compute_visibility", full)
+    f = compute_forcing(demo.lat, demo.lon, 1.0, demo.window_start, a0=demo.a0)
+    assert seen["bodies"] == ("SUN",)
+    for name in (
+        "t_s",
+        "absorbed_flux",
+        "visible_fraction",
+        "sun_azimuth_deg",
+        "sun_elevation_deg",
+        "cos_incidence",
+        "albedo",
+        "distance_au",
+    ):
+        np.testing.assert_array_equal(
+            getattr(f, name), getattr(demo, name), err_msg=name
+        )
+    assert f.facet == demo.facet
+    assert f.horizon_missing_samples == demo.horizon_missing_samples
+
+
+@pytest.mark.data
 def test_distance_matches_the_engine_disc_radius(demo):
     """r from topocentric agrees with R_sun / sin(apparent radius) from the engine's
     series. Tolerance 1e-9 relative."""
@@ -515,6 +627,7 @@ def test_slope_matches_the_engine_slope_statistics(demo):
         assert fc.file_id == "ldem_128_img"
         ref = global_slope_stats(demo.lat, demo.lon, 1000.0).at_point_deg
     assert fc.slope_deg == pytest.approx(ref, abs=1e-9)
+    assert fc.engine_slope_deg == fc.slope_deg
     assert all(b > 0 for b in fc.baseline_m)
     assert demo.terrain_layers[0]["role"] == "near_field"
     assert demo.terrain_layers[0]["label"] == fc.layer
